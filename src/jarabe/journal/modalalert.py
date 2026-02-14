@@ -29,68 +29,51 @@ class ModalAlert(Gtk.Window):
     def __init__(self):
         Gtk.Window.__init__(self)
 
-        self.set_border_width(style.LINE_WIDTH)
-        offset = style.GRID_CELL_SIZE
-        width = Gdk.Screen.width() - offset * 2
-        height = Gdk.Screen.height() - offset * 2
-        self.set_size_request(width, height)
-        self.set_position(Gtk.WindowPosition.CENTER_ALWAYS)
+        self.set_margin_start(style.LINE_WIDTH)
+        self.set_margin_end(style.LINE_WIDTH)
+        self.set_margin_top(style.LINE_WIDTH)
+        self.set_margin_bottom(style.LINE_WIDTH)
         self.set_decorated(False)
         self.set_resizable(False)
         self.set_modal(True)
 
-        self._main_view = Gtk.EventBox()
-        self._vbox = Gtk.VBox()
+        self._main_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self._vbox = self._main_view
         self._vbox.set_spacing(style.DEFAULT_SPACING)
-        self._vbox.set_border_width(style.GRID_CELL_SIZE * 2)
-        self._main_view.modify_bg(Gtk.StateType.NORMAL,
-                                  style.COLOR_BLACK.get_gdk_color())
-        self._main_view.add(self._vbox)
-        self._vbox.show()
+        self._vbox.set_margin_start(style.GRID_CELL_SIZE * 2)
+        self._vbox.set_margin_end(style.GRID_CELL_SIZE * 2)
+        self._vbox.set_margin_top(style.GRID_CELL_SIZE * 2)
+        self._vbox.set_margin_bottom(style.GRID_CELL_SIZE * 2)
 
         color = profile.get_color()
 
         icon = Icon(icon_name='activity-journal',
                     pixel_size=style.XLARGE_ICON_SIZE,
                     xo_color=color)
-        self._vbox.pack_start(icon, expand=False, fill=False, padding=0)
-        icon.show()
+        self._vbox.append(icon)
 
         self._title = Gtk.Label()
-        self._title.modify_fg(Gtk.StateType.NORMAL,
-                              style.COLOR_WHITE.get_gdk_color())
         self._title.set_markup('<b>%s</b>' % _('Your Journal is full'))
-        self._vbox.pack_start(self._title, expand=False, fill=False, padding=0)
-        self._title.show()
+        self._vbox.append(self._title)
 
         self._message = Gtk.Label(
             label=_('Please delete some old Journal'
                     ' entries to make space for new ones.'))
-        self._message.modify_fg(Gtk.StateType.NORMAL,
-                                style.COLOR_WHITE.get_gdk_color())
-        self._vbox.pack_start(self._message, expand=False,
-                              fill=False, padding=0)
-        self._message.show()
-
-        alignment = Gtk.Alignment.new(xalign=0.5, yalign=0.5,
-                                      xscale=0.0, yscale=0.0)
-        self._vbox.pack_start(alignment, expand=False, fill=True, padding=0)
-        alignment.show()
+        self._vbox.append(self._message)
 
         self._show_journal = Gtk.Button()
         self._show_journal.set_label(_('Show Journal'))
-        alignment.add(self._show_journal)
-        self._show_journal.show()
+        self._show_journal.set_halign(Gtk.Align.CENTER)
         self._show_journal.connect('clicked', self.__show_journal_cb)
+        self._vbox.append(self._show_journal)
 
-        self.add(self._main_view)
-        self._main_view.show()
+        self.set_child(self._main_view)
 
         self.connect('realize', self.__realize_cb)
 
     def __realize_cb(self, widget):
-        self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
-        self.get_window().set_accept_focus(True)
+        # self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
+        pass
 
     def __show_journal_cb(self, button):
         """The opener will listen on the destroy signal"""

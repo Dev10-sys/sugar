@@ -77,14 +77,7 @@ class ActivityButton(RadioToolButton):
             XoColor('%s,%s' % (style.COLOR_BUTTON_GREY.get_svg(),
                                style.COLOR_TOOLBAR_GREY.get_svg()))
         if self._home_activity.is_journal():
-            self._icon.drag_dest_set(Gtk.DestDefaults.ALL,
-                                     [], Gdk.DragAction.COPY)
-            self._icon.drag_dest_add_text_targets()
-            self._icon.drag_dest_add_image_targets()
-            self._icon.drag_dest_add_uri_targets()
-            self._icon.connect('drag_drop', self.__drag_drop_cb)
-            self._icon.connect('drag_data_received',
-                               self.__journal_drag_data_received_cb)
+            pass
 
         if home_activity.get_icon_path():
             self._icon.props.file = home_activity.get_icon_path()
@@ -106,43 +99,6 @@ class ActivityButton(RadioToolButton):
                 'notify::launch-status', self.__notify_launch_status_cb)
         elif home_activity.props.launch_status == shell.Activity.LAUNCH_FAILED:
             self._on_failed_launch()
-
-    def __drag_drop_cb(self, widget, context, x, y, time):
-        context_targets = context.list_targets()
-        if not self._context_map.has_context(context):
-            self._context_map.add_context(context, 0, len(context_targets))
-
-        for target in context_targets:
-            if str(target) not in ('TIMESTAMP', 'TARGETS', 'MULTIPLE'):
-                widget.drag_get_data(context, target, time)
-
-        cb_menu = ClipboardMenu(self._cb_object)
-        cb_menu._copy_to_journal()
-
-        logging.debug('Saved to Journal')
-        return True
-
-    def __journal_drag_data_received_cb(self, widget, context, x, y, selection,
-                                        targetType, time):
-        data = None
-        if selection.get_pixbuf() is not None:
-            data = selection.get_pixbuf()
-        if len(selection.get_uris()) != 0:
-            data = selection.get_uris()[0].encode()
-        if selection.get_text() is not None:
-            data = selection.get_text().encode()
-        if data is None:
-            data = selection.get_data()
-
-        self._cb_object = ClipboardObject(0, "")
-
-        mime_type = selection.get_data_type().name()
-        cb_format = Format(mime_type, data, on_disk=False)
-        self._cb_object.add_format(cb_format)
-
-        logging.debug('ActivityTray: got data for target')
-
-        Gtk.drag_finish(context, True, True, Gtk.get_current_event_time())
 
     def create_palette(self):
         if self._home_activity.is_journal():
@@ -189,7 +145,7 @@ class InviteButton(ToolButton):
         self._invite = invite
 
         self.connect('clicked', self.__clicked_cb)
-        self.connect('destroy', self.__destroy_cb)
+        self.connect('unroot', self.__destroy_cb)
 
         bundle_registry = bundleregistry.get_registry()
         bundle = bundle_registry.get_bundle(invite.get_bundle_id())
@@ -210,8 +166,10 @@ class InviteButton(ToolButton):
         self.set_palette(palette)
 
         self._notif_icon = NotificationIcon()
-        self._notif_icon.connect('button-release-event',
-                                 self.__button_release_event_cb)
+        gesture = Gtk.GestureClick()
+        gesture.connect('released',
+                        self.__button_release_event_cb)
+        self._notif_icon.add_controller(gesture)
 
         self._notif_icon.props.xo_color = invite.get_color()
         if bundle is not None:
@@ -222,7 +180,7 @@ class InviteButton(ToolButton):
         frame = jarabe.frame.get_view()
         frame.add_notification(self._notif_icon, Gtk.CornerType.TOP_LEFT)
 
-    def __button_release_event_cb(self, icon, event):
+    def __button_release_event_cb(self, icon, n_press, x, y):
         if self._notif_icon is not None:
             frame = jarabe.frame.get_view()
             frame.remove_notification(self._notif_icon)
@@ -417,7 +375,7 @@ class ActivitiesTray(HTray):
             logging.debug('ActivitiesTray.__activity_clicked_cb')
             window = home_activity.get_window()
             if window:
-                window.activate(Gtk.get_current_event_time())
+                window.present()
                 frame = jarabe.frame.get_view()
                 frame.hide()
 
@@ -439,8 +397,9 @@ class ActivitiesTray(HTray):
         self._invite_to_item[invite] = item
 
     def _remove_invite(self, invite):
-        self.remove_item(self._invite_to_item[invite])
-        self._invite_to_item[invite].destroy()
+        item = self._invite_to_item[invite]
+        self.remove_item(item)
+        item.destroy()
         del self._invite_to_item[invite]
 
     def __new_file_transfer_cb(self, **kwargs):
@@ -471,12 +430,14 @@ class BaseTransferButton(ToolButton):
         icon.show()
 
         self.notif_icon = NotificationIcon()
-        self.notif_icon.connect('button-release-event',
-                                self.__button_release_event_cb)
+        gesture = Gtk.GestureClick()
+        gesture.connect('released',
+                          self.__button_release_event_cb)
+        self.notif_icon.add_controller(gesture)
 
         self.connect('clicked', self.__button_clicked_cb)
 
-    def __button_release_event_cb(self, icon, event):
+    def __button_release_event_cb(self, gesture, n_press, x, y):
         if self.notif_icon is not None:
             frame = jarabe.frame.get_view()
             frame.remove_notification(self.notif_icon)
@@ -728,25 +689,23 @@ class IncomingTransferPalette(BaseTransferPalette):
             box.append_item(separator)
             separator.show()
 
-            inner_box = Gtk.VBox()
+            inner_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             inner_box.set_spacing(style.DEFAULT_PADDING)
             box.append_item(inner_box, vertical_padding=0)
-            inner_box.show()
 
             if self.file_transfer.description:
                 text = self.file_transfer.description.replace('\n', ' ')
                 label = Gtk.Label(label=text)
                 label.set_max_width_chars(style.MENU_WIDTH_CHARS)
                 label.set_ellipsize(style.ELLIPSIZE_MODE_DEFAULT)
-                inner_box.add(label)
-                label.show()
+                inner_box.append(label)
 
             mime_type = self.file_transfer.mime_type
             type_description = mime.get_mime_description(mime_type)
 
             size = self._format_size(self.file_transfer.file_size)
             label = Gtk.Label(label='%s (%s)' % (size, type_description))
-            inner_box.add(label)
+            inner_box.append(label)
             label.show()
 
         elif self.file_transfer.props.state in \
@@ -764,17 +723,17 @@ class IncomingTransferPalette(BaseTransferPalette):
             box.append_item(separator)
             separator.show()
 
-            inner_box = Gtk.VBox()
+            inner_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             inner_box.set_spacing(style.DEFAULT_PADDING)
             box.append_item(inner_box, vertical_padding=0)
             inner_box.show()
 
             self.progress_bar = Gtk.ProgressBar()
-            inner_box.add(self.progress_bar)
+            inner_box.append(self.progress_bar)
             self.progress_bar.show()
 
             self.progress_label = Gtk.Label(label='')
-            inner_box.add(self.progress_label)
+            inner_box.append(self.progress_label)
             self.progress_label.show()
 
             self.update_progress()
@@ -803,14 +762,14 @@ class IncomingTransferPalette(BaseTransferPalette):
                 box.append_item(menu_item)
                 menu_item.show()
 
-                inner_box = Gtk.VBox()
+                inner_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
                 inner_box.set_spacing(style.DEFAULT_PADDING)
                 box.append_item(inner_box, vertical_padding=0)
                 inner_box.show()
 
                 text = _('The other participant canceled the file transfer')
                 label = Gtk.Label(label=text)
-                inner_box.add(label)
+                inner_box.append(label)
                 label.show()
 
     def __accept_activate_cb(self, menu_item):
@@ -886,14 +845,14 @@ class OutgoingTransferPalette(BaseTransferPalette):
             box.append_item(separator)
             separator.show()
 
-            inner_box = Gtk.VBox()
+            inner_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             inner_box.set_spacing(style.DEFAULT_PADDING)
             box.append_item(inner_box, vertical_padding=0)
             inner_box.show()
 
             if self.file_transfer.description:
                 label = Gtk.Label(label=self.file_transfer.description)
-                inner_box.add(label)
+                inner_box.append(label)
                 label.show()
 
             mime_type = self.file_transfer.mime_type
@@ -901,7 +860,7 @@ class OutgoingTransferPalette(BaseTransferPalette):
 
             size = self._format_size(self.file_transfer.file_size)
             label = Gtk.Label(label='%s (%s)' % (size, type_description))
-            inner_box.add(label)
+            inner_box.append(label)
             label.show()
 
         elif new_state in [filetransfer.FT_STATE_ACCEPTED,
@@ -919,17 +878,17 @@ class OutgoingTransferPalette(BaseTransferPalette):
             box.append_item(separator)
             separator.show()
 
-            inner_box = Gtk.VBox()
+            inner_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             inner_box.set_spacing(style.DEFAULT_PADDING)
             box.append_item(inner_box, vertical_padding=0)
             inner_box.show()
 
             self.progress_bar = Gtk.ProgressBar()
-            inner_box.add(self.progress_bar)
+            inner_box.append(self.progress_bar)
             self.progress_bar.show()
 
             self.progress_label = Gtk.Label(label='')
-            inner_box.add(self.progress_label)
+            inner_box.append(self.progress_label)
             self.progress_label.show()
 
             self.update_progress()

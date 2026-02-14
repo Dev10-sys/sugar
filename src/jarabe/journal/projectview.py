@@ -35,38 +35,42 @@ _SERVICE_PATH = '/org/laptop/Activity'
 _SERVICE_INTERFACE = 'org.laptop.Activity'
 
 
-class ProjectView(Gtk.EventBox, BaseExpandedEntry):
+class ProjectView(Gtk.Box, BaseExpandedEntry):
 
     __gsignals__ = {
         'go-back-clicked': (GObject.SignalFlags.RUN_FIRST, None, ([])),
     }
 
     def __init__(self, **kwargs):
-        Gtk.EventBox.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
         BaseExpandedEntry.__init__(self)
         self.project_metadata = None
         self._service = None
         self._activity_id = None
         self._project = None
-        self.modify_bg(Gtk.StateType.NORMAL, style.COLOR_WHITE.get_gdk_color())
 
-        self._vbox = Gtk.VBox()
-        self.add(self._vbox)
+        self._vbox = self
 
         back_bar = BackBar()
-        back_bar.connect('button-release-event',
-                         self.__back_bar_release_event_cb)
-        self._vbox.pack_start(back_bar, False, True, 0)
+        gesture = Gtk.GestureClick()
+        gesture.connect('released',
+                          self.__back_bar_release_event_cb)
+        back_bar.add_controller(gesture)
+        self._vbox.append(back_bar)
 
         header = self.create_header()
-        self._vbox.pack_start(header, False, False, style.DEFAULT_SPACING * 2)
-        header.show()
+        self._vbox.append(header)
+        header.set_margin_top(style.DEFAULT_SPACING * 2)
+        header.set_margin_bottom(style.DEFAULT_SPACING * 2)
 
         description_box, self._description = self._create_description()
-        self._vbox.pack_start(description_box, False, True,
-                              style.DEFAULT_SPACING / 3)
+        self._vbox.append(description_box)
+        description_box.set_margin_top(style.DEFAULT_SPACING / 3)
+        description_box.set_margin_bottom(style.DEFAULT_SPACING / 3)
 
-        self._title.connect('focus-out-event', self._title_focus_out_event_cb)
+        focus_controller = Gtk.EventControllerFocus()
+        focus_controller.connect('leave', self._title_focus_out_event_cb)
+        self._title.add_controller(focus_controller)
 
         settings = Gio.Settings.new('org.sugarlabs.user')
         icon_color = settings.get_string('color')
@@ -74,7 +78,7 @@ class ProjectView(Gtk.EventBox, BaseExpandedEntry):
         self._icon = Icon(icon_name='project-box',
                           pixel_size=style.MEDIUM_ICON_SIZE)
         self._icon.xo_color = XoColor(icon_color)
-        self._icon_box.pack_start(self._icon, False, False, 0)
+        self._icon_box.append(self._icon)
 
     def get_vbox(self):
         return self._vbox
@@ -89,9 +93,8 @@ class ProjectView(Gtk.EventBox, BaseExpandedEntry):
     def get_mount_point(self):
         return '/'
 
-    def __back_bar_release_event_cb(self, back_bar, event):
+    def __back_bar_release_event_cb(self, gesture, n_press, x, y):
         self.emit('go-back-clicked')
-        return False
 
     def set_project_metadata(self, project_metadata):
         self.project_metadata = project_metadata
@@ -100,16 +103,18 @@ class ProjectView(Gtk.EventBox, BaseExpandedEntry):
         self._description.get_buffer().set_text(description)
         self._title.set_text(project_metadata.get('title', ''))
 
-    def _title_focus_out_event_cb(self, entry, event):
+    def _title_focus_out_event_cb(self, controller):
         self._update_entry()
 
     def _create_description(self):
         widget = TextView()
-        widget.connect('focus-out-event',
+        focus_controller = Gtk.EventControllerFocus()
+        focus_controller.connect('leave',
                        self._description_tags_focus_out_event_cb)
+        widget.add_controller(focus_controller)
         return self._create_scrollable(widget, label=_('Description:')), widget
 
-    def _description_tags_focus_out_event_cb(self, text_view, event):
+    def _description_tags_focus_out_event_cb(self, controller):
         self._update_entry()
 
     def _update_entry(self):
@@ -131,23 +136,21 @@ class ProjectView(Gtk.EventBox, BaseExpandedEntry):
             model.write(self.project_metadata)
 
     def _create_scrollable(self, widget, label=None):
-        vbox = Gtk.VBox()
-        vbox.props.spacing = style.DEFAULT_SPACING
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        vbox.set_spacing(style.DEFAULT_SPACING)
 
         if label is not None:
             text = Gtk.Label()
             text.set_markup('<span foreground="%s">%s</span>' % (
                 style.COLOR_BUTTON_GREY.get_html(), label))
-
-            halign = Gtk.Alignment.new(0, 0, 0, 0)
-            halign.add(text)
-            vbox.pack_start(halign, False, False, 0)
+            text.set_halign(Gtk.Align.START)
+            vbox.append(text)
 
         scrolled_window = Gtk.ScrolledWindow()
         scrolled_window.set_policy(Gtk.PolicyType.AUTOMATIC,
                                    Gtk.PolicyType.AUTOMATIC)
-        scrolled_window.set_shadow_type(Gtk.ShadowType.ETCHED_IN)
-        scrolled_window.add(widget)
-        vbox.pack_start(scrolled_window, True, True, 0)
+        scrolled_window.set_child(widget)
+        vbox.append(scrolled_window)
+        scrolled_window.set_vexpand(True)
 
         return vbox

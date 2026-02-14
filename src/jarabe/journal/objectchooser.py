@@ -45,90 +45,70 @@ class ObjectChooser(Gtk.Window):
     def __init__(self, parent=None, what_filter='', filter_type=None,
                  show_preview=False):
         Gtk.Window.__init__(self)
-        self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
         self.set_decorated(False)
-        self.set_position(Gtk.WindowPosition.CENTER_ALWAYS)
-        self.set_border_width(style.LINE_WIDTH)
-        self.set_has_resize_grip(False)
+        self.set_margin_start(style.LINE_WIDTH)
+        self.set_margin_end(style.LINE_WIDTH)
+        self.set_margin_top(style.LINE_WIDTH)
+        self.set_margin_bottom(style.LINE_WIDTH)
 
         self._selected_object_id = None
         self._show_preview = show_preview
 
-        self.add_events(Gdk.EventMask.VISIBILITY_NOTIFY_MASK)
-        self.connect('visibility-notify-event',
-                     self.__visibility_notify_event_cb)
-        self.connect('delete-event', self.__delete_event_cb)
-        self.connect('key-press-event', self.__key_press_event_cb)
+        self.connect('close-request', self.__delete_event_cb)
 
-        if parent is None:
-            logging.warning('ObjectChooser: No parent window specified')
-        else:
-            self.connect('realize', self.__realize_cb, parent)
+        key_controller = Gtk.EventControllerKey()
+        key_controller.connect('key-pressed', self.__key_press_event_cb)
+        self.add_controller(key_controller)
 
-            #screen = Wnck.Screen.get_default()
-            #screen.connect('window-closed', self.__window_closed_cb, parent)
+        if parent is not None:
+            self.set_transient_for(parent)
 
-        vbox = Gtk.VBox()
-        self.add(vbox)
-        vbox.show()
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.set_child(vbox)
 
         title_box = TitleBox(what_filter, filter_type)
         title_box.connect('volume-changed', self.__volume_changed_cb)
         title_box.close_button.connect('clicked',
                                        self.__close_button_clicked_cb)
         title_box.set_size_request(-1, style.GRID_CELL_SIZE)
-        vbox.pack_start(title_box, False, True, 0)
-        title_box.show()
+        vbox.append(title_box)
 
-        separator = Gtk.HSeparator()
-        vbox.pack_start(separator, False, True, 0)
-        separator.show()
+        separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        vbox.append(separator)
 
         self._toolbar = MainToolbox(default_what_filter=what_filter,
                                     default_filter_type=filter_type)
         self._toolbar.connect('query-changed', self.__query_changed_cb)
         self._toolbar.set_size_request(-1, style.GRID_CELL_SIZE)
-        vbox.pack_start(self._toolbar, False, True, 0)
-        self._toolbar.show()
+        vbox.append(self._toolbar)
 
         if not self._show_preview:
             self._list_view = ChooserListView(self._toolbar)
             self._list_view.connect('entry-activated',
                                     self.__entry_activated_cb)
             self._list_view.connect('clear-clicked', self.__clear_clicked_cb)
-            vbox.pack_start(self._list_view, True, True, 0)
-            self._list_view.show()
+            vbox.append(self._list_view)
+            self._list_view.set_vexpand(True)
         else:
             self._icon_view = IconView(self._toolbar)
             self._icon_view.connect('entry-activated',
                                     self.__entry_activated_cb)
             self._icon_view.connect('clear-clicked', self.__clear_clicked_cb)
-            vbox.pack_start(self._icon_view, True, True, 0)
-            self._icon_view.show()
-
-        width = Gdk.Screen.width() - style.GRID_CELL_SIZE * 2
-        height = Gdk.Screen.height() - style.GRID_CELL_SIZE * 2
-        self.set_size_request(width, height)
+            vbox.append(self._icon_view)
+            self._icon_view.set_vexpand(True)
 
         self._toolbar.update_filters('/', what_filter, filter_type)
 
-    def __realize_cb(self, chooser, parent):
-        self.get_window().set_transient_for(parent)
-        # TODO: Should we disconnect the signal here?
-
-    def __window_closed_cb(self, screen, window, parent):
-        if window.get_xid() == parent.get_xid():
-            self.destroy()
 
     def __entry_activated_cb(self, list_view, uid):
         self._selected_object_id = uid
         self.emit('response', Gtk.ResponseType.ACCEPT)
 
-    def __delete_event_cb(self, chooser, event):
+    def __delete_event_cb(self, chooser):
         self.emit('response', Gtk.ResponseType.DELETE_EVENT)
 
-    def __key_press_event_cb(self, widget, event):
-        keyname = Gdk.keyval_name(event.keyval)
+    def __key_press_event_cb(self, controller, keyval, keycode, state):
+        keyname = Gdk.keyval_name(keyval)
         if keyname == 'Escape':
             self.emit('response', Gtk.ResponseType.DELETE_EVENT)
 
@@ -148,13 +128,6 @@ class ObjectChooser(Gtk.Window):
         logging.debug('Selected volume: %r.', mount_point)
         self._toolbar.set_mount_point(mount_point)
 
-    def __visibility_notify_event_cb(self, window, event):
-        logging.debug('visibility_notify_event_cb %r', self)
-        visible = event.get_state() == Gdk.VisibilityState.FULLY_OBSCURED
-        if not self._show_preview:
-            self._list_view.set_is_visible(visible)
-        else:
-            self._icon_view.set_is_visible(visible)
 
     def __clear_clicked_cb(self, list_view):
         self._toolbar.clear_query()
@@ -176,7 +149,8 @@ class TitleBox(VolumesToolbar):
                     bundle.get_name()
 
         label.set_markup('<b>%s</b>' % title)
-        label.set_alignment(0, 0.5)
+        label.set_xalign(0)
+        label.set_yalign(0.5)
         self._add_widget(label, expand=True)
 
         self.close_button = ToolButton(icon_name='dialog-cancel')
@@ -185,14 +159,9 @@ class TitleBox(VolumesToolbar):
         self.close_button.show()
 
     def _add_widget(self, widget, expand=False):
-        tool_item = Gtk.ToolItem()
-        tool_item.set_expand(expand)
-
-        tool_item.add(widget)
-        widget.show()
-
-        self.insert(tool_item, -1)
-        tool_item.show()
+        if expand:
+            widget.set_hexpand(True)
+        self.append(widget)
 
 
 class ChooserListView(BaseListView):
@@ -210,8 +179,10 @@ class ChooserListView(BaseListView):
 
         self.tree_view.props.hover_selection = True
 
-        self.tree_view.connect('button-release-event',
+        gesture = Gtk.GestureClick()
+        gesture.connect('released',
                                self.__button_release_event_cb)
+        self.tree_view.add_controller(gesture)
 
     def _can_clear_query(self):
         return self._toolbar.is_filter_changed()
@@ -219,20 +190,18 @@ class ChooserListView(BaseListView):
     def _favorite_clicked_cb(self, cell, path):
         pass
 
-    def create_palette(self, x, y):
+    def create_palette(self, path, column):
         # We don't want show the palette in the object chooser
-        pass
+        return None
 
-    def __button_release_event_cb(self, tree_view, event):
-        if event.window != tree_view.get_bin_window():
-            return False
-
-        pos = tree_view.get_path_at_pos(int(event.x), int(event.y))
+    def __button_release_event_cb(self, gesture, n_press, x, y):
+        # uid = self._model[tree_iter][ListModel.COLUMN_UID]
+        # self.emit('entry-activated', uid)
+        # Actually we need the path at pos
+        pos = self.tree_view.get_path_at_pos(int(x), int(y))
         if pos is None:
-            return False
+            return
 
         path, column_, x_, y_ = pos
-        uid = tree_view.get_model()[path][ListModel.COLUMN_UID]
+        uid = self.tree_view.get_model()[path][ListModel.COLUMN_UID]
         self.emit('entry-activated', uid)
-
-        return False
