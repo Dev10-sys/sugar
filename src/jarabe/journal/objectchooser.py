@@ -19,7 +19,6 @@ import logging
 from gi.repository import GObject
 from gi.repository import Gtk
 from gi.repository import Gdk
-from gi.repository import Wnck
 
 from sugar3.graphics import style
 from sugar3.graphics.toolbutton import ToolButton
@@ -66,8 +65,11 @@ class ObjectChooser(Gtk.Window):
         else:
             self.connect('realize', self.__realize_cb, parent)
 
-            screen = Wnck.Screen.get_default()
-            screen.connect('window-closed', self.__window_closed_cb, parent)
+            if is_x11_backend():
+                from gi.repository import Wnck
+                screen = Wnck.Screen.get_default()
+                screen.connect('window-closed', self.__window_closed_cb,
+                               parent)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(vbox)

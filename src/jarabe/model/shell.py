@@ -18,7 +18,6 @@ import logging
 import time
 
 from gi.repository import Gio
-from gi.repository import Wnck
 from gi.repository import GObject
 from gi.repository import Gtk
 from gi.repository import Gdk
@@ -32,6 +31,7 @@ from gi.repository import SugarExt
 
 from jarabe.model.bundleregistry import get_registry
 from jarabe.util.backend import is_x11_backend
+from jarabe.util.windowbackend import get_window_backend
 
 _SERVICE_NAME = 'org.laptop.Activity'
 _SERVICE_PATH = '/org/laptop/Activity'
@@ -360,8 +360,9 @@ class Activity(GObject.GObject):
             self._set_launch_status(Activity.LAUNCH_FAILED)
 
     def _state_changed_cb(self, main_window, changed_mask, new_state):
-        if changed_mask & Wnck.WindowState.MINIMIZED:
-            if new_state & Wnck.WindowState.MINIMIZED:
+        if get_model()._window_backend.is_window_state_minimized_changed(
+                changed_mask, new_state):
+            if main_window.is_minimized():
                 self.emit('pause')
             else:
                 self.emit('resume')
@@ -409,11 +410,11 @@ class ShellModel(GObject.GObject):
     def __init__(self):
         GObject.GObject.__init__(self)
 
-        self._screen = Wnck.Screen.get_default()
-        self._screen.connect('window-opened', self._window_opened_cb)
-        self._screen.connect('window-closed', self._window_closed_cb)
-        self._screen.connect('active-window-changed',
-                             self._active_window_changed_cb)
+        self._window_backend = get_window_backend()
+        self._window_backend.connect_window_opened(self._window_opened_cb)
+        self._window_backend.connect_window_closed(self._window_closed_cb)
+        self._window_backend.connect_active_window_changed(
+            self._active_window_changed_cb)
 
         self.zoom_level_changed = dispatch.Signal()
 
@@ -427,7 +428,7 @@ class ShellModel(GObject.GObject):
         self._launchers = {}
         self._modal_dialogs_counter = 0
 
-        self._screen.toggle_showing_desktop(True)
+        self._window_backend.toggle_showing_desktop(True)
 
         settings = Gio.Settings.new('org.sugarlabs')
         self._maximum_open_activities = settings.get_int(
@@ -446,9 +447,9 @@ class ShellModel(GObject.GObject):
             del self._launchers[activity_id]
 
     def _update_zoom_level(self, window):
-        if window.get_window_type() == Wnck.WindowType.DIALOG:
+        if self._window_backend.is_window_dialog(window):
             return
-        if window.get_window_type() == Wnck.WindowType.NORMAL:
+        if self._window_backend.is_window_normal(window):
             new_level = self.ZOOM_ACTIVITY
         else:
             new_level = self._desktop_level
@@ -472,7 +473,7 @@ class ShellModel(GObject.GObject):
                                      new_level=new_level)
 
         show_desktop = new_level is not self.ZOOM_ACTIVITY
-        self._screen.toggle_showing_desktop(show_desktop)
+        self._window_backend.toggle_showing_desktop(show_desktop)
 
         if new_level is self.ZOOM_ACTIVITY:
             # activate the window, in case it was iconified
@@ -577,8 +578,7 @@ class ShellModel(GObject.GObject):
            them.
 
          """
-        if window.get_window_type() == Wnck.WindowType.NORMAL or \
-                window.get_window_type() == Wnck.WindowType.SPLASHSCREEN:
+        if self._window_backend.is_window_normal_or_splash(window):
             home_activity = None
             xid = None
             activity_id = None
@@ -607,12 +607,11 @@ class ShellModel(GObject.GObject):
             def is_main_window(window, home_activity):
                 # Check if window is the 'main' app window, not the
                 # launcher window.
-                return window.get_window_type() != \
-                    Wnck.WindowType.SPLASHSCREEN and \
+                return self._window_backend.is_window_normal(window) and \
                     home_activity.get_launch_status() == Activity.LAUNCHING
 
             if home_activity is None and \
-                    window.get_window_type() == Wnck.WindowType.NORMAL:
+                    self._window_backend.is_window_normal(window):
                 # This is a special case for the Journal
                 # We check if is not a splash screen to avoid #4767
                 logging.debug('first window registered for %s', activity_id)
@@ -637,8 +636,7 @@ class ShellModel(GObject.GObject):
                 self._set_active_activity(home_activity)
 
     def _window_closed_cb(self, screen, window):
-        if window.get_window_type() == Wnck.WindowType.NORMAL or \
-                window.get_window_type() == Wnck.WindowType.SPLASHSCREEN:
+        if self._window_backend.is_window_normal_or_splash(window):
             if is_x11_backend():
                 xid = window.get_xid()
                 activity = self._get_activity_by_xid(xid)
@@ -674,11 +672,11 @@ class ShellModel(GObject.GObject):
         return None
 
     def _active_window_changed_cb(self, screen, previous_window=None):
-        window = screen.get_active_window()
+        window = self._window_backend.get_active_window()
         if window is None:
             return
 
-        if window.get_window_type() != Wnck.WindowType.DIALOG:
+        if not self._window_backend.is_window_dialog(window):
             while window.get_transient() is not None:
                 window = window.get_transient()
 
@@ -718,7 +716,7 @@ class ShellModel(GObject.GObject):
 
     def _remove_activity(self, home_activity):
         if home_activity == self._active_activity:
-            windows = Wnck.Screen.get_default().get_windows_stacked()
+            windows = self._window_backend.get_windows_stacked()
             windows.reverse()
             for window in windows:
                 if is_x11_backend():

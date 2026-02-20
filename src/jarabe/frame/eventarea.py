@@ -17,9 +17,10 @@ from gi.repository import Gtk
 from gi.repository import Gdk
 from gi.repository import GObject
 from gi.repository import GLib
-from gi.repository import Wnck
 
 from sugar3.graphics import style
+
+from jarabe.util.backend import is_x11_backend
 
 
 _MAX_DELAY = 1000
@@ -51,9 +52,11 @@ class EventArea(GObject.GObject):
         settings.connect('changed', self._settings_changed_cb)
         self._settings_changed_cb(settings, None)
 
-        screen = Wnck.Screen.get_default()
-        screen.connect('window-stacking-changed',
-                       self._window_stacking_changed_cb)
+        if is_x11_backend():
+            from gi.repository import Wnck
+            screen = Wnck.Screen.get_default()
+            screen.connect('window-stacking-changed',
+                           self._window_stacking_changed_cb)
 
     def _box(self, tag):
         box = Gtk.Invisible()
