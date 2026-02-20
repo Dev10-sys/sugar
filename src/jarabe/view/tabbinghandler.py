@@ -45,44 +45,20 @@ class TabbingHandler(object):
 
     def _start_tabbing(self, event_time):
         if not self._tabbing:
-            logging.debug('Grabing the input.')
+            logging.debug('Starting tabbing focus.')
 
-            screen = Gdk.Screen.get_default()
-            window = screen.get_root_window()
+            window = self._frame.get_window()
+            self._tabbing = window is not None
 
-            keyboard_grab_result = self._keyboard.grab(
-                window,
-                Gdk.GrabOwnership.WINDOW,
-                False,
-                Gdk.EventMask.KEY_PRESS_MASK |
-                Gdk.EventMask.KEY_RELEASE_MASK,
-                None,
-                event_time)
-
-            mouse_grab_result = self._mouse.grab(
-                window,
-                Gdk.GrabOwnership.WINDOW,
-                False,
-                Gdk.EventMask.BUTTON_PRESS_MASK |
-                Gdk.EventMask.BUTTON_RELEASE_MASK,
-                None,
-                event_time)
-
-            self._tabbing = (keyboard_grab_result == Gdk.GrabStatus.SUCCESS and
-                             mouse_grab_result == Gdk.GrabStatus.SUCCESS)
+            if window is not None:
+                window.grab_focus()
 
             # Now test that the modifier is still active to prevent race
-            # conditions. We also test if one of the grabs failed.
-            mask = window.get_device_position(self._mouse)[3]
+            # conditions.
+            mask = 0
+            if window is not None and self._mouse is not None:
+                mask = window.get_device_position(self._mouse)[3]
             if not self._tabbing or not (mask & self._modifier):
-                logging.debug('Releasing grabs again.')
-
-                # ungrab keyboard/pointer if the grab was successfull.
-                if keyboard_grab_result == Gdk.GrabStatus.SUCCESS:
-                    self._keyboard.ungrab(event_time)
-                if mouse_grab_result == Gdk.GrabStatus.SUCCESS:
-                    self._mouse.ungrab(event_time)
-
                 self._tabbing = False
             else:
                 self._frame.show()
@@ -161,8 +137,6 @@ class TabbingHandler(object):
             next_activity.get_window().activate(event_time)
 
     def stop(self, event_time):
-        self._keyboard.ungrab(event_time)
-        self._mouse.ungrab(event_time)
         self._tabbing = False
 
         self._frame.hide()
