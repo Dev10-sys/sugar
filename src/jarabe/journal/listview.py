@@ -558,8 +558,9 @@ class BaseListView(Gtk.Bin):
             self._last_progress_bar_pulse = time.time()
 
     def _start_progress_bar(self):
-        alignment = Gtk.Alignment.new(xalign=0.5, yalign=0.5,
-                                      xscale=0.5, yscale=0)
+        alignment = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        alignment.set_halign(Gtk.Align.CENTER)
+        alignment.set_valign(Gtk.Align.CENTER)
         self.remove(self.get_child())
         self.add(alignment)
         alignment.show()
@@ -585,10 +586,12 @@ class BaseListView(Gtk.Bin):
                                  style.COLOR_WHITE.get_gdk_color())
         self.add(background_box)
 
-        alignment = Gtk.Alignment.new(0.5, 0.5, 0.1, 0.1)
+        alignment = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        alignment.set_halign(Gtk.Align.CENTER)
+        alignment.set_valign(Gtk.Align.CENTER)
         background_box.add(alignment)
 
-        box = Gtk.VBox()
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         alignment.add(box)
 
         icon = Icon(pixel_size=style.LARGE_ICON_SIZE,

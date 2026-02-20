@@ -472,11 +472,13 @@ class ClearMessageBox(Gtk.EventBox):
         self.modify_bg(Gtk.StateType.NORMAL,
                        style.COLOR_WHITE.get_gdk_color())
 
-        alignment = Gtk.Alignment.new(0.5, 0.5, 0.1, 0.1)
+        alignment = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        alignment.set_halign(Gtk.Align.CENTER)
+        alignment.set_valign(Gtk.Align.CENTER)
         self.add(alignment)
         alignment.show()
 
-        box = Gtk.VBox()
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         alignment.add(box)
         box.show()
 
@@ -507,7 +509,7 @@ class ClearMessageBox(Gtk.EventBox):
         button.show()
 
 
-class ActivitiesList(Gtk.VBox):
+class ActivitiesList(Gtk.Box):
     __gtype_name__ = 'SugarActivitiesList'
 
     __gsignals__ = {
@@ -517,7 +519,7 @@ class ActivitiesList(Gtk.VBox):
     def __init__(self):
         logging.debug('STARTUP: Loading the activities list')
 
-        Gtk.VBox.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
 
         self._scrolled_window = Gtk.ScrolledWindow()
         self._scrolled_window.set_can_focus(False)
