@@ -80,7 +80,7 @@ class ViewToolbar(Gtk.Toolbar):
 
         self._add_separator(expand=True)
 
-        self._button_box = Gtk.HBox()
+        self._button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         self._favorites_buttons = []
         for i in range(desktop.get_number_of_views()):
             self._add_favorites_button(i)
@@ -216,8 +216,8 @@ class FavoritesButton(RadioToolButton):
         favorites_settings = favoritesview.get_settings(favorite_view)
         self._layout = favorites_settings.layout
 
-        # someday, this will be a Gtk.Table()
-        layouts_grid = Gtk.HBox()
+        # someday, this will be a Gtk.Grid()
+        layouts_grid = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         layout_item = None
         for layoutid, layoutclass in sorted(favoritesview.LAYOUT_MAP.items()):
             layout_item = RadioToolButton(icon_name=layoutclass.icon_name,

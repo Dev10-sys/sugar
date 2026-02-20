@@ -888,7 +888,7 @@ class MultiSelectEntriesInfoWidget(Gtk.ToolItem):
     def __init__(self):
         Gtk.ToolItem.__init__(self)
 
-        self._box = Gtk.VBox()
+        self._box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self._selected_entries = 0
         self._total = 0
 

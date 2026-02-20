@@ -62,8 +62,8 @@ class ControlPanel(Gtk.Window):
         self._section_toolbar = None
         self._main_toolbar = None
 
-        self._vbox = Gtk.VBox()
-        self._hbox = Gtk.HBox()
+        self._vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self._hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         self._vbox.pack_start(self._hbox, True, True, 0)
         self._hbox.show()
 
@@ -165,9 +165,9 @@ class ControlPanel(Gtk.Window):
     def _setup_main(self):
         self._main_toolbar = MainToolbar()
 
-        self._table = Gtk.Table()
-        self._table.set_col_spacings(style.GRID_CELL_SIZE)
-        self._table.set_row_spacings(style.GRID_CELL_SIZE)
+        self._table = Gtk.Grid()
+        self._table.set_column_spacing(style.GRID_CELL_SIZE)
+        self._table.set_row_spacing(style.GRID_CELL_SIZE)
         self._table.set_border_width(style.GRID_CELL_SIZE)
 
         self._scrolledwindow = Gtk.ScrolledWindow()
@@ -210,13 +210,11 @@ class ControlPanel(Gtk.Window):
             sectionicon.show()
 
             if option == 'aboutme':
-                self._table.attach(sectionicon, 0, 1, 0, 1)
+                self._table.attach(sectionicon, 0, 0, 1, 1)
             elif option == 'aboutcomputer':
-                self._table.attach(sectionicon, 1, 2, 0, 1)
+                self._table.attach(sectionicon, 1, 0, 1, 1)
             else:
-                self._table.attach(sectionicon,
-                                   column, column + 1,
-                                   row, row + 1)
+                self._table.attach(sectionicon, column, row, 1, 1)
                 column += 1
                 if column == self._max_columns:
                     column = 0
@@ -528,7 +526,7 @@ class _SectionIcon(Gtk.EventBox):
 
         Gtk.EventBox.__init__(self, **kwargs)
 
-        self._vbox = Gtk.VBox()
+        self._vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self._icon = Icon(icon_name=self._icon_name,
                           pixel_size=self._pixel_size,
                           xo_color=self._xo_color)

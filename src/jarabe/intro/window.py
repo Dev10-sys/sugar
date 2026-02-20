@@ -88,13 +88,13 @@ def create_profile(user_profile):
     logging.debug("User keypair generated")
 
 
-class _Page(Gtk.VBox):
+class _Page(Gtk.Box):
     __gproperties__ = {
         'valid': (bool, None, None, False, GObject.ParamFlags.READABLE),
     }
 
     def __init__(self):
-        Gtk.VBox.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
         self.valid = False
 
     def set_valid(self, valid):
@@ -115,7 +115,9 @@ class _NamePage(_Page):
         _Page.__init__(self)
         self._intro = intro
 
-        alignment = Gtk.Alignment.new(0.5, 0.5, 0, 0)
+        alignment = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        alignment.set_halign(Gtk.Align.CENTER)
+        alignment.set_valign(Gtk.Align.CENTER)
         self.pack_start(alignment, expand=True, fill=True, padding=0)
 
         grid = Gtk.Grid()
@@ -155,7 +157,9 @@ class _ColorPage(_Page):
     def __init__(self):
         _Page.__init__(self)
 
-        alignment = Gtk.Alignment.new(0.5, 0.5, 0, 0)
+        alignment = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        alignment.set_halign(Gtk.Align.CENTER)
+        alignment.set_valign(Gtk.Align.CENTER)
         self.pack_start(alignment, expand=True, fill=True, padding=0)
 
         grid = Gtk.Grid()
@@ -185,7 +189,9 @@ class _GenderPage(_Page):
     def __init__(self):
         _Page.__init__(self)
 
-        alignment = Gtk.Alignment.new(0.5, 0.5, 0, 0)
+        alignment = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        alignment.set_halign(Gtk.Align.CENTER)
+        alignment.set_valign(Gtk.Align.CENTER)
         self.pack_start(alignment, expand=True, fill=True, padding=0)
 
         grid = Gtk.Grid()
@@ -218,7 +224,9 @@ class _AgePage(_Page):
     def __init__(self, gender):
         _Page.__init__(self)
 
-        alignment = Gtk.Alignment.new(0.5, 0.5, 0, 0)
+        alignment = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        alignment.set_halign(Gtk.Align.CENTER)
+        alignment.set_valign(Gtk.Align.CENTER)
         self.pack_start(alignment, expand=True, fill=True, padding=0)
 
         grid = Gtk.Grid()
@@ -249,7 +257,7 @@ class _AgePage(_Page):
         return self._ap.get_age()
 
 
-class _IntroBox(Gtk.VBox):
+class _IntroBox(Gtk.Box):
     done_signal = GObject.Signal('done', arg_types=([object]))
 
     PAGES = ["NAME", "COLOR", "GENDER", "AGE"]
@@ -258,7 +266,7 @@ class _IntroBox(Gtk.VBox):
     PAGE_LAST = len(PAGES) - 1
 
     def __init__(self, start_on_age_page):
-        Gtk.VBox.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
         self.set_border_width(style.zoom(30))
 
         self._page = 0
@@ -329,17 +337,21 @@ class _IntroBox(Gtk.VBox):
         self.pack_start(self._current_page, True, True, 0)
         self._current_page.show()
 
-        button_box = Gtk.HButtonBox()
-        if self._page == self.PAGE_FIRST:
-            button_box.set_layout(Gtk.ButtonBoxStyle.END)
-        else:
-            button_box.set_layout(Gtk.ButtonBoxStyle.EDGE)
+        button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        button_box.set_spacing(style.DEFAULT_SPACING)
+
+        if self._page != self.PAGE_FIRST:
             back_button = Gtk.Button(_('Back'))
             image = Icon(icon_name='go-left')
             back_button.set_image(image)
             back_button.connect('clicked', self._back_activated_cb)
-            button_box.pack_start(back_button, True, True, 0)
+            button_box.pack_start(back_button, False, False, 0)
             back_button.show()
+
+        spacer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        spacer.set_hexpand(True)
+        button_box.pack_start(spacer, True, True, 0)
+        spacer.show()
 
         self._next_button = Gtk.Button()
         image = Icon(icon_name='go-right')
@@ -355,7 +367,7 @@ class _IntroBox(Gtk.VBox):
         self._current_page.activate()
 
         self._update_next_button()
-        button_box.pack_start(self._next_button, True, True, 0)
+        button_box.pack_end(self._next_button, False, False, 0)
         self._next_button.show()
 
         self._current_page.connect('notify::valid',

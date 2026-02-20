@@ -40,7 +40,7 @@ class ModalAlert(Gtk.Window):
         self.set_modal(True)
 
         self._main_view = Gtk.EventBox()
-        self._vbox = Gtk.VBox()
+        self._vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self._vbox.set_spacing(style.DEFAULT_SPACING)
         self._vbox.set_border_width(style.GRID_CELL_SIZE * 2)
         self._main_view.modify_bg(Gtk.StateType.NORMAL,
@@ -72,8 +72,9 @@ class ModalAlert(Gtk.Window):
                               fill=False, padding=0)
         self._message.show()
 
-        alignment = Gtk.Alignment.new(xalign=0.5, yalign=0.5,
-                                      xscale=0.0, yscale=0.0)
+        alignment = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        alignment.set_halign(Gtk.Align.CENTER)
+        alignment.set_valign(Gtk.Align.CENTER)
         self._vbox.pack_start(alignment, expand=False, fill=True, padding=0)
         alignment.show()
 
