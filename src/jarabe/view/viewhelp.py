@@ -23,7 +23,6 @@ import json
 from gi.repository import Gtk
 from gi.repository import GObject
 from gi.repository import Gdk
-from gi.repository import GdkX11
 from gi.repository import Gio
 
 from sugar3 import env
@@ -123,13 +122,6 @@ def should_show_view_help(activity):
 def setup_view_help(activity):
     if activity.has_shell_window():
         return
-    # check whether the execution was from an activity
-    bundle_path = activity.get_bundle_path()
-    if bundle_path is None:
-        window_xid = 0
-    else:
-        # get activity name and window id
-        window_xid = activity.get_xid()
 
     if not should_show_view_help(activity):
         return
@@ -137,17 +129,16 @@ def setup_view_help(activity):
     if shell.get_model().has_modal():
         return
 
-    viewhelp = ViewHelp(activity, window_xid)
+    viewhelp = ViewHelp(activity, activity.get_window())
     activity.push_shell_window(viewhelp)
     viewhelp.connect('hide', activity.pop_shell_window)
     viewhelp.show()
 
 
 class ViewHelp(Gtk.Window):
-    parent_window_xid = None
 
-    def __init__(self, activity, window_xid):
-        self.parent_window_xid = window_xid
+    def __init__(self, activity, parent_window):
+        self._parent_window = parent_window
 
         url, title = get_help_url_and_title(activity)
         has_local_help = url is not None
@@ -226,11 +217,8 @@ class ViewHelp(Gtk.Window):
         self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
         window = self.get_window()
         window.set_accept_focus(True)
-        if self.parent_window_xid > 0:
-            display = Gdk.Display.get_default()
-            parent = GdkX11.X11Window.foreign_new_for_display(
-                display, self.parent_window_xid)
-            window.set_transient_for(parent)
+        if self._parent_window is not None:
+            window.set_transient_for(self._parent_window)
         shell.get_model().push_modal()
 
     def __hide_cb(self, widget):

@@ -29,7 +29,6 @@ from gi.repository import GLib
 from gi.repository import Pango
 from gi.repository import Gtk
 from gi.repository import Gdk
-from gi.repository import GdkX11
 from gi.repository import GtkSource
 from gi.repository import GdkPixbuf
 import dbus
@@ -127,17 +126,13 @@ def setup_view_source(activity):
         except Exception:
             logging.exception('Exception occurred in HandleViewSource():')
 
-    window_xid = activity.get_xid()
-    if window_xid is None:
-        _logger.error('Activity without a window xid')
-        return
+    parent_window = activity.get_window()
 
     bundle_path = activity.get_bundle_path()
     bundle_id = activity.get_bundle_id()
 
     if activity.has_shell_window():
-        _logger.debug('A window is already open for %s %s', window_xid,
-                      bundle_path)
+        _logger.debug('A window is already open for %s', bundle_path)
         return
 
     document_path = None
@@ -162,7 +157,7 @@ def setup_view_source(activity):
     if sugar_toolkit_path is None:
         _logger.error("Path to toolkit not found.")
 
-    view_source = ViewSource(window_xid, bundle_path, document_path,
+    view_source = ViewSource(parent_window, bundle_path, document_path,
                              sugar_toolkit_path, activity.get_title())
     activity.push_shell_window(view_source)
     view_source.connect('hide', activity.pop_shell_window)
@@ -172,7 +167,7 @@ def setup_view_source(activity):
 class ViewSource(Gtk.Window):
     __gtype_name__ = 'SugarViewSource'
 
-    def __init__(self, window_xid, bundle_path, document_path,
+    def __init__(self, parent_window, bundle_path, document_path,
                  sugar_toolkit_path, title):
         Gtk.Window.__init__(self)
 
@@ -189,7 +184,7 @@ class ViewSource(Gtk.Window):
         height = Gdk.Screen.height() - style.GRID_CELL_SIZE * 2
         self.set_size_request(width, height)
 
-        self._parent_window_xid = window_xid
+        self._parent_window = parent_window
         self._sugar_toolkit_path = sugar_toolkit_path
         self._gdk_window = self.get_root_window()
 
@@ -293,10 +288,8 @@ class ViewSource(Gtk.Window):
         window = self.get_window()
         window.set_accept_focus(True)
 
-        display = Gdk.Display.get_default()
-        parent = GdkX11.X11Window.foreign_new_for_display(
-            display, self._parent_window_xid)
-        window.set_transient_for(parent)
+        if self._parent_window is not None:
+            window.set_transient_for(self._parent_window)
 
     def __stop_clicked_cb(self, widget):
         self.destroy()

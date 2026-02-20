@@ -175,19 +175,12 @@ class KeyHandler(object):
         if activity.has_shell_window():
             return
 
-        bundle_path = activity.get_bundle_path()
-        if bundle_path is None:
-            window_xid = 0
-        else:
-            # get activity name and window id
-            window_xid = activity.get_xid()
-
         if shell.get_model().has_modal():
             return
 
         self._frame.hide()
 
-        panel = ControlPanel(window_xid)
+        panel = ControlPanel(activity.get_window())
         activity.push_shell_window(panel)
         panel.connect('hide', activity.pop_shell_window)
         panel.show()

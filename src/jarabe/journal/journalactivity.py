@@ -22,7 +22,6 @@ import time
 
 from gi.repository import Gtk
 from gi.repository import Gdk
-from gi.repository import GdkX11
 from gi.repository import Gio
 import dbus
 import os
@@ -31,7 +30,6 @@ from sugar3.graphics.alert import ErrorAlert
 from sugar3 import env
 from sugar3.datastore import datastore
 from sugar3.activity import activityfactory
-from gi.repository import SugarExt
 
 from jarabe.journal.journaltoolbox import MainToolbox
 from jarabe.journal.journaltoolbox import AddNewBar
@@ -138,37 +136,22 @@ class JournalActivityDBusService(dbus.service.Object):
         chooser.destroy()
         del chooser
 
-    @dbus.service.method(J_DBUS_INTERFACE, in_signature='is',
+    @dbus.service.method(J_DBUS_INTERFACE, in_signature='s',
                          out_signature='s')
-    def ChooseObject(self, parent_xid, what_filter=''):
-        """
-        This method is keep for backwards compatibility
-        """
+    def ChooseObject(self, what_filter=''):
         chooser_id = uuid.uuid4().hex
-        if parent_xid > 0:
-            display = Gdk.Display.get_default()
-            parent = GdkX11.X11Window.foreign_new_for_display(
-                display, parent_xid)
-        else:
-            parent = None
-        chooser = ObjectChooser(parent, what_filter)
+        chooser = ObjectChooser(None, what_filter)
         chooser.connect('response', self._chooser_response_cb, chooser_id)
         chooser.show()
 
         return chooser_id
 
-    @dbus.service.method(J_DBUS_INTERFACE, in_signature='issb',
+    @dbus.service.method(J_DBUS_INTERFACE, in_signature='ssb',
                          out_signature='s')
-    def ChooseObjectWithFilter(self, parent_xid, what_filter='',
+    def ChooseObjectWithFilter(self, what_filter='',
                                filter_type=None, show_preview=False):
         chooser_id = uuid.uuid4().hex
-        if parent_xid > 0:
-            display = Gdk.Display.get_default()
-            parent = GdkX11.X11Window.foreign_new_for_display(
-                display, parent_xid)
-        else:
-            parent = None
-        chooser = ObjectChooser(parent, what_filter, filter_type, show_preview)
+        chooser = ObjectChooser(None, what_filter, filter_type, show_preview)
         chooser.connect('response', self._chooser_response_cb, chooser_id)
         chooser.show()
 
@@ -245,10 +228,7 @@ class JournalActivity(JournalWindow):
         self.remove_alert(alert)
 
     def __realize_cb(self, window):
-        xid = window.get_window().get_xid()
-        SugarExt.wm_set_bundle_id(xid, _BUNDLE_ID)
-        activity_id = activityfactory.create_activity_id()
-        SugarExt.wm_set_activity_id(xid, str(activity_id))
+        activityfactory.create_activity_id()
         self.disconnect(self._realized_sid)
         self._realized_sid = None
 

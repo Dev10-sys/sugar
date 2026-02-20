@@ -149,10 +149,6 @@ class Activity(GObject.GObject):
         for w in self._shell_windows:
             w.destroy()
 
-    def remove_window_by_xid(self, xid):
-        """Compatibility shim for pre-Wayland code paths."""
-        return False
-
     def get_service(self):
         """Get the activity service
 
@@ -207,14 +203,6 @@ class Activity(GObject.GObject):
         if self._activity_info is None:
             return None
         return self._activity_info.get_bundle_id()
-
-    def get_xid(self):
-        """Compatibility shim for pre-Wayland code paths."""
-        return None
-
-    def has_xid(self, xid):
-        """Compatibility shim for pre-Wayland code paths."""
-        return False
 
     def get_window(self):
         """Retrieve the X-windows root window of this application

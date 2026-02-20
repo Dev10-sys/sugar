@@ -20,7 +20,6 @@ from gi.repository import Gio
 from gi.repository import Gtk
 from gi.repository import Gdk
 
-from gi.repository import SugarExt
 from sugar3.graphics import style
 
 from jarabe.model import shell
@@ -102,8 +101,7 @@ class LaunchWindow(Gtk.Window):
         self.resize(Gdk.Screen.width(), Gdk.Screen.height())
 
     def __realize_cb(self, widget):
-        SugarExt.wm_set_activity_id(widget.get_window().get_xid(),
-                                    str(self._activity_id))
+        return
 
     def __size_changed_cb(self, screen):
         self._update_size()

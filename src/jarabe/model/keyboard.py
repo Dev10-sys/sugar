@@ -19,7 +19,7 @@ import logging
 import gi
 gi.require_version('Xkl', '1.0')
 from gi.repository import Gio
-from gi.repository import GdkX11
+from gi.repository import Gdk
 from gi.repository import Xkl
 
 
@@ -28,7 +28,7 @@ def setup():
     have_config = False
 
     try:
-        display = GdkX11.x11_get_default_xdisplay()
+        display = Gdk.Display.get_default()
         if display is not None:
             engine = Xkl.Engine.get_instance(display)
         else:
