@@ -50,7 +50,7 @@ class ProjectView(Gtk.EventBox, BaseExpandedEntry):
         self._project = None
         self.modify_bg(Gtk.StateType.NORMAL, style.COLOR_WHITE.get_gdk_color())
 
-        self._vbox = Gtk.VBox()
+        self._vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(self._vbox)
 
         back_bar = BackBar()
@@ -131,7 +131,7 @@ class ProjectView(Gtk.EventBox, BaseExpandedEntry):
             model.write(self.project_metadata)
 
     def _create_scrollable(self, widget, label=None):
-        vbox = Gtk.VBox()
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.props.spacing = style.DEFAULT_SPACING
 
         if label is not None:
@@ -139,7 +139,9 @@ class ProjectView(Gtk.EventBox, BaseExpandedEntry):
             text.set_markup('<span foreground="%s">%s</span>' % (
                 style.COLOR_BUTTON_GREY.get_html(), label))
 
-            halign = Gtk.Alignment.new(0, 0, 0, 0)
+            halign = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            halign.set_halign(Gtk.Align.CENTER)
+            halign.set_valign(Gtk.Align.CENTER)
             halign.add(text)
             vbox.pack_start(halign, False, False, 0)
 
