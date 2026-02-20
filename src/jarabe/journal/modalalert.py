@@ -74,8 +74,9 @@ class ModalAlert(Gtk.Window):
                               fill=False, padding=0)
         self._message.show()
 
-        alignment = Gtk.Alignment.new(xalign=0.5, yalign=0.5,
-                                      xscale=0.0, yscale=0.0)
+        alignment = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        alignment.set_halign(Gtk.Align.CENTER)
+        alignment.set_valign(Gtk.Align.CENTER)
         self._vbox.pack_start(alignment, expand=False, fill=True, padding=0)
         alignment.show()
 

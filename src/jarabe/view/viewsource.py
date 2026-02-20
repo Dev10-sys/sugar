@@ -193,7 +193,7 @@ class ViewSource(Gtk.Window):
 
         self._parent_window = parent_window
         self._sugar_toolkit_path = sugar_toolkit_path
-        self._gdk_window = self.get_root_window()
+        self._gdk_window = self.get_window()
 
         self.connect('realize', self.__realize_cb)
         self.connect('destroy', self.__destroy_cb, document_path)
@@ -335,7 +335,9 @@ class ViewSource(Gtk.Window):
         if document_path is not None and os.path.exists(document_path):
             os.unlink(document_path)
 
-        self._gdk_window.set_cursor(Gdk.Cursor(Gdk.CursorType.LEFT_PTR))
+        gdk_window = self.get_window()
+        if gdk_window is not None:
+            gdk_window.set_cursor(Gdk.Cursor(Gdk.CursorType.LEFT_PTR))
         Gdk.flush()
 
     def __key_press_event_cb(self, window, event):
@@ -423,8 +425,9 @@ class DocumentButton(RadioToolButton):
         else:
             cursor = Gdk.Cursor(Gdk.CursorType.LEFT_PTR)
 
-        gdk_window = self.get_root_window()
-        gdk_window.set_cursor(cursor)
+        gdk_window = self.get_window()
+        if gdk_window is not None:
+            gdk_window.set_cursor(cursor)
         Gdk.flush()
 
     def __copy_to_home_cb(self, menu_item, copy_alert=None):

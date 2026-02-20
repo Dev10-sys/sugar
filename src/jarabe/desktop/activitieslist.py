@@ -472,7 +472,9 @@ class ClearMessageBox(Gtk.EventBox):
         self.modify_bg(Gtk.StateType.NORMAL,
                        style.COLOR_WHITE.get_gdk_color())
 
-        alignment = Gtk.Alignment.new(0.5, 0.5, 0.1, 0.1)
+        alignment = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        alignment.set_halign(Gtk.Align.CENTER)
+        alignment.set_valign(Gtk.Align.CENTER)
         self.add(alignment)
         alignment.show()
 
@@ -494,8 +496,8 @@ class ClearMessageBox(Gtk.EventBox):
         box.pack_start(label, expand=True, fill=False, padding=0)
         label.show()
 
-        button_box = Gtk.HButtonBox()
-        button_box.set_layout(Gtk.ButtonBoxStyle.CENTER)
+        button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        button_box.set_halign(Gtk.Align.CENTER)
         box.pack_start(button_box, False, True, 0)
         button_box.show()
 

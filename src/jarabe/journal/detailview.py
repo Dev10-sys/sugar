@@ -93,7 +93,9 @@ class BackBar(Gtk.EventBox):
 
         label = Gtk.Label()
         label.set_text(_('Back'))
-        halign = Gtk.Alignment.new(0, 0.5, 0, 1)
+        halign = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        halign.set_halign(Gtk.Align.CENTER)
+        halign.set_valign(Gtk.Align.CENTER)
         halign.add(label)
         hbox.pack_start(halign, True, True, 0)
         hbox.show()

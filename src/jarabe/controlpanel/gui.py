@@ -83,8 +83,11 @@ class ControlPanel(Gtk.Window):
         self._setup_main()
         self._setup_section()
         self._show_main_view()
-        Gdk.Screen.get_default().connect(
-            'size-changed', self.__size_changed_cb)
+        display = Gdk.Display.get_default()
+        display.connect('monitor-added',
+                        lambda *args: self.__size_changed_cb())
+        display.connect('monitor-removed',
+                        lambda *args: self.__size_changed_cb())
 
         self._busy_count = 0
         self._selected = []
@@ -101,7 +104,7 @@ class ControlPanel(Gtk.Window):
         # the modal windows counter is updated to disable hot keys - SL#4601
         shell.get_model().push_modal()
 
-    def __size_changed_cb(self, event):
+    def __size_changed_cb(self, event=None):
         self._calculate_max_columns()
 
     def busy(self):
@@ -217,6 +220,7 @@ class ControlPanel(Gtk.Window):
                 self._table.attach(sectionicon,
                                    column, row,
                                    1, 1)
+                self._table.attach(sectionicon, column, row, 1, 1)
                 column += 1
                 if column == self._max_columns:
                     column = 0

@@ -44,13 +44,21 @@ class Separator(Gtk.Box):
 
     def __init__(self, orientation):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
+        Gtk.Box.__init__(
+            self, background_color=style.COLOR_PANEL_GREY.get_gdk_color())
+        Gtk.Box.__init__(self, orientation=orientation)
+        self.set_size_request(-1, style.GRID_CELL_SIZE)
 
 
-class BuddyList(Gtk.Alignment):
+class BuddyList(Gtk.Box):
 
     def __init__(self, buddies):
-        Gtk.Alignment.__init__(self)
-        self.set(0, 0, 0, 0)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
+        
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        Gtk.Box.__init__(self,
+                         orientation=Gtk.Orientation.HORIZONTAL,
+                         spacing=style.DEFAULT_SPACING)
 
         hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         for buddy in buddies:
@@ -59,8 +67,7 @@ class BuddyList(Gtk.Alignment):
                               xo_color=XoColor(color),
                               pixel_size=style.STANDARD_ICON_SIZE)
             icon.set_palette(BuddyPalette(buddy))
-            hbox.pack_start(icon, True, True, 0)
-        self.add(hbox)
+            self.pack_start(icon, True, True, 0)
 
 
 class TextView(Gtk.TextView):
@@ -444,7 +451,9 @@ class ExpandedEntry(Gtk.EventBox, BaseExpandedEntry):
         text = Gtk.Label()
         text.set_markup('<span foreground="%s">%s</span>' % (
             style.COLOR_BUTTON_GREY.get_html(), _('Participants:')))
-        halign = Gtk.Alignment.new(0, 0, 0, 0)
+        halign = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        halign.set_halign(Gtk.Align.CENTER)
+        halign.set_valign(Gtk.Align.CENTER)
         halign.add(text)
         vbox.pack_start(halign, False, False, 0)
 
@@ -463,7 +472,9 @@ class ExpandedEntry(Gtk.EventBox, BaseExpandedEntry):
             text.set_markup('<span foreground="%s">%s</span>' % (
                 style.COLOR_BUTTON_GREY.get_html(), label))
 
-            halign = Gtk.Alignment.new(0, 0, 0, 0)
+            halign = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            halign.set_halign(Gtk.Align.CENTER)
+            halign.set_valign(Gtk.Align.CENTER)
             halign.add(text)
             vbox.pack_start(halign, False, False, 0)
 

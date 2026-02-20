@@ -139,7 +139,9 @@ class ProjectView(Gtk.EventBox, BaseExpandedEntry):
             text.set_markup('<span foreground="%s">%s</span>' % (
                 style.COLOR_BUTTON_GREY.get_html(), label))
 
-            halign = Gtk.Alignment.new(0, 0, 0, 0)
+            halign = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            halign.set_halign(Gtk.Align.CENTER)
+            halign.set_valign(Gtk.Align.CENTER)
             halign.add(text)
             vbox.pack_start(halign, False, False, 0)
 

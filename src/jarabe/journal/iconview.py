@@ -245,8 +245,11 @@ class IconView(Gtk.Bin):
             self._last_progress_bar_pulse = time.time()
 
     def _start_progress_bar(self):
-        alignment = Gtk.Alignment.new(xalign=0.5, yalign=0.5,
-                                      xscale=0.5, yscale=0)
+        alignment = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        alignment.set_halign(Gtk.Align.CENTER)
+        alignment.set_valign(Gtk.Align.CENTER)
+        alignment.set_hexpand(True)
+        alignment.set_vexpand(True)
         self.remove(self.get_child())
         self.add(alignment)
         alignment.show()
@@ -272,7 +275,9 @@ class IconView(Gtk.Bin):
                                  style.COLOR_WHITE.get_gdk_color())
         self.add(background_box)
 
-        alignment = Gtk.Alignment.new(0.5, 0.5, 0.1, 0.1)
+        alignment = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        alignment.set_halign(Gtk.Align.CENTER)
+        alignment.set_valign(Gtk.Align.CENTER)
         background_box.add(alignment)
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -291,8 +296,8 @@ class IconView(Gtk.Bin):
         box.pack_start(label, expand=True, fill=False, padding=0)
 
         if show_clear_query:
-            button_box = Gtk.HButtonBox()
-            button_box.set_layout(Gtk.ButtonBoxStyle.CENTER)
+            button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            button_box.set_halign(Gtk.Align.CENTER)
             box.pack_start(button_box, False, True, 0)
             button_box.show()
 

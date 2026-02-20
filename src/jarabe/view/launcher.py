@@ -53,6 +53,7 @@ class LaunchWindow(Gtk.Window):
 
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         box.set_size_request(screen_width / 5, -1)
+        box.set_size_request(Gdk.Screen.width() / 5, -1)
         box.show()
         canvas.pack_start(box, True, True, 0)
 
@@ -77,7 +78,9 @@ class LaunchWindow(Gtk.Window):
         self.error_text.props.use_markup = True
         footer.pack_start(self.error_text, False, True, 0)
 
-        button_box = Gtk.Alignment.new(0.5, 0, 0, 0)
+        button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        button_box.set_halign(Gtk.Align.CENTER)
+        button_box.set_valign(Gtk.Align.CENTER)
         button_box.show()
         footer.pack_start(button_box, False, True, 0)
         self.cancel_button = Gtk.Button(stock=Gtk.STOCK_STOP)
