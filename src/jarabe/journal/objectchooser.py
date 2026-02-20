@@ -19,7 +19,6 @@ import logging
 from gi.repository import GObject
 from gi.repository import Gtk
 from gi.repository import Gdk
-from gi.repository import Wnck
 
 from sugar3.graphics import style
 from sugar3.graphics.toolbutton import ToolButton
@@ -65,8 +64,8 @@ class ObjectChooser(Gtk.Window):
         else:
             self.connect('realize', self.__realize_cb, parent)
 
-            screen = Wnck.Screen.get_default()
-            screen.connect('window-closed', self.__window_closed_cb, parent)
+            if hasattr(parent, 'connect'):
+                parent.connect('destroy', self.__parent_destroy_cb)
 
         vbox = Gtk.VBox()
         self.add(vbox)
@@ -116,9 +115,8 @@ class ObjectChooser(Gtk.Window):
         self.get_window().set_transient_for(parent)
         # TODO: Should we disconnect the signal here?
 
-    def __window_closed_cb(self, screen, window, parent):
-        if window.get_xid() == parent.get_xid():
-            self.destroy()
+    def __parent_destroy_cb(self, parent):
+        self.destroy()
 
     def __entry_activated_cb(self, list_view, uid):
         self._selected_object_id = uid
