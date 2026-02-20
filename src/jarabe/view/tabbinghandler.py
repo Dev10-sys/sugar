@@ -17,6 +17,7 @@ import logging
 
 from gi.repository import GLib
 from gi.repository import Gdk
+from gi.repository import Gtk
 
 from jarabe.model import shell
 
@@ -47,16 +48,16 @@ class TabbingHandler(object):
         if not self._tabbing:
             logging.debug('Starting tabbing focus.')
 
-            window = self._frame.get_window()
-            self._tabbing = window is not None
+            window = self._frame.get_toplevel()
+            self._tabbing = isinstance(window, Gtk.Window)
 
-            if window is not None:
+            if self._tabbing:
                 window.grab_focus()
 
             # Now test that the modifier is still active to prevent race
             # conditions.
             mask = 0
-            if window is not None and self._mouse is not None:
+            if self._tabbing and self._mouse is not None:
                 mask = window.get_device_position(self._mouse)[3]
             if not self._tabbing or not (mask & self._modifier):
                 self._tabbing = False

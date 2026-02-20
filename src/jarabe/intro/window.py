@@ -118,7 +118,9 @@ class _NamePage(_Page):
         alignment = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         alignment.set_halign(Gtk.Align.CENTER)
         alignment.set_valign(Gtk.Align.CENTER)
-        self.pack_start(alignment, expand=True, fill=True, padding=0)
+        alignment.set_hexpand(False)
+        alignment.set_vexpand(False)
+        self.pack_start(alignment, False, False, 0)
 
         grid = Gtk.Grid()
         grid.set_column_spacing(style.DEFAULT_SPACING)
@@ -160,7 +162,9 @@ class _ColorPage(_Page):
         alignment = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         alignment.set_halign(Gtk.Align.CENTER)
         alignment.set_valign(Gtk.Align.CENTER)
-        self.pack_start(alignment, expand=True, fill=True, padding=0)
+        alignment.set_hexpand(False)
+        alignment.set_vexpand(False)
+        self.pack_start(alignment, False, False, 0)
 
         grid = Gtk.Grid()
         grid.set_column_spacing(style.DEFAULT_SPACING)
@@ -192,7 +196,9 @@ class _GenderPage(_Page):
         alignment = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         alignment.set_halign(Gtk.Align.CENTER)
         alignment.set_valign(Gtk.Align.CENTER)
-        self.pack_start(alignment, expand=True, fill=True, padding=0)
+        alignment.set_hexpand(False)
+        alignment.set_vexpand(False)
+        self.pack_start(alignment, False, False, 0)
 
         grid = Gtk.Grid()
         grid.set_column_spacing(style.DEFAULT_SPACING)
@@ -227,7 +233,9 @@ class _AgePage(_Page):
         alignment = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         alignment.set_halign(Gtk.Align.CENTER)
         alignment.set_valign(Gtk.Align.CENTER)
-        self.pack_start(alignment, expand=True, fill=True, padding=0)
+        alignment.set_hexpand(False)
+        alignment.set_vexpand(False)
+        self.pack_start(alignment, False, False, 0)
 
         grid = Gtk.Grid()
         grid.set_column_spacing(style.DEFAULT_SPACING)

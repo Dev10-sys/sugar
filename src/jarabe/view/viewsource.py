@@ -191,7 +191,6 @@ class ViewSource(Gtk.Window):
 
         self._parent_window_xid = window_xid
         self._sugar_toolkit_path = sugar_toolkit_path
-        self._gdk_window = self.get_window()
 
         self.connect('realize', self.__realize_cb)
         self.connect('destroy', self.__destroy_cb, document_path)

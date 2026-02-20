@@ -65,7 +65,7 @@ class BuddyList(Gtk.Box):
                               xo_color=XoColor(color),
                               pixel_size=style.STANDARD_ICON_SIZE)
             icon.set_palette(BuddyPalette(buddy))
-            self.pack_start(icon, True, True, 0)
+            self.pack_start(icon, False, False, 0)
 
 
 class TextView(Gtk.TextView):

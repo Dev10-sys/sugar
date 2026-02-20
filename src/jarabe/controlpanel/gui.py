@@ -52,6 +52,7 @@ class ControlPanel(Gtk.Window):
 
         self.set_can_focus(True)
         self.connect('key-press-event', self.__key_press_event_cb)
+        self.connect('configure-event', self.__size_changed_cb)
 
         self._toolbar = None
         self._canvas = None
