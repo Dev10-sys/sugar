@@ -23,6 +23,7 @@ from sugar3.graphics import style
 
 from jarabe.frame import clipboard
 from jarabe.frame.clipboardicon import ClipboardIcon
+from jarabe.util.screen import get_screen_size
 
 
 class ContextMap(object):
@@ -58,7 +59,7 @@ class ContextMap(object):
 
 class ClipboardTray(tray.VTray):
 
-    MAX_ITEMS = (Gdk.Display.get_default().get_primary_monitor().get_geometry().height if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 768) // style.GRID_CELL_SIZE - 2
+    MAX_ITEMS = get_screen_size()[1] // style.GRID_CELL_SIZE - 2
 
     def __init__(self):
         tray.VTray.__init__(self, align=tray.ALIGN_TO_END)

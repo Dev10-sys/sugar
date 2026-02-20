@@ -32,6 +32,7 @@ from jarabe.desktop.transitionbox import TransitionBox
 from jarabe.desktop.viewtoolbar import ViewToolbar
 from jarabe.model.shell import ShellModel
 from jarabe.model import shell
+from jarabe.util.screen import get_default_display
 
 
 _HOME_PAGE = 0
@@ -201,7 +202,7 @@ class HomeWindow(Gtk.Window):
         return False
 
     def __alt_timeout_cb(self):
-        display = Gdk.Display.get_default()
+        display = get_default_display()
         screen_, x_, y_, modmask = display.get_pointer()
         if modmask & Gdk.ModifierType.MOD1_MASK:
             return True

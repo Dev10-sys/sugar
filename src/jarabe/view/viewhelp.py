@@ -33,6 +33,7 @@ from sugar3.graphics.radiotoolbutton import RadioToolButton
 from sugar3.bundle.activitybundle import get_bundle_instance
 from jarabe.model import shell
 from jarabe.view.viewhelp_webkit2 import Browser
+from jarabe.util.screen import get_screen_size
 
 
 _logger = logging.getLogger('ViewHelp')
@@ -163,8 +164,9 @@ class ViewHelp(Gtk.Window):
         self.set_border_width(style.LINE_WIDTH)
         self.set_has_resize_grip(False)
 
-        width = (Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024) - style.GRID_CELL_SIZE * 2
-        height = (Gdk.Display.get_default().get_primary_monitor().get_geometry().height if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 768) - style.GRID_CELL_SIZE * 2
+        screen_width, screen_height = get_screen_size()
+        width = screen_width - style.GRID_CELL_SIZE * 2
+        height = screen_height - style.GRID_CELL_SIZE * 2
         self.set_size_request(width, height)
 
         self.connect('realize', self.__realize_cb)

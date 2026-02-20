@@ -31,6 +31,7 @@ from jarabe.journal.volumestoolbar import VolumesToolbar
 from jarabe.model import bundleregistry
 
 from jarabe.journal.iconview import IconView
+from jarabe.util.screen import get_screen_size
 
 
 class ObjectChooser(Gtk.Window):
@@ -105,8 +106,9 @@ class ObjectChooser(Gtk.Window):
             vbox.pack_start(self._icon_view, True, True, 0)
             self._icon_view.show()
 
-        width = (Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024) - style.GRID_CELL_SIZE * 2
-        height = (Gdk.Display.get_default().get_primary_monitor().get_geometry().height if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 768) - style.GRID_CELL_SIZE * 2
+        screen_width, screen_height = get_screen_size()
+        width = screen_width - style.GRID_CELL_SIZE * 2
+        height = screen_height - style.GRID_CELL_SIZE * 2
         self.set_size_request(width, height)
 
         self._toolbar.update_filters('/', what_filter, filter_type)

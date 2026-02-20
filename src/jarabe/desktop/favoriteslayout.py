@@ -25,6 +25,7 @@ from sugar3.graphics import style
 
 from jarabe.model import bundleregistry
 from jarabe.desktop.grid import Grid
+from jarabe.util.screen import get_screen_size
 
 
 _logger = logging.getLogger('FavoritesLayout')
@@ -369,7 +370,8 @@ class RingLayout(ViewLayout):
 
     def _calculate_maximum_radius(self, icon_size):
         """ Return the maximum radius including encroachment. """
-        r = ((Gdk.Display.get_default().get_primary_monitor().get_geometry().height if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 768) - style.GRID_CELL_SIZE) / 2 - \
+        screen_width, screen_height = get_screen_size()
+        r = (screen_height - style.GRID_CELL_SIZE) / 2 - \
             style.DEFAULT_SPACING
         return r - (icon_size * _MAXIMUM_RADIUS_PADDING_FACTOR)
 

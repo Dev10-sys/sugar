@@ -50,6 +50,7 @@ from sugar3.env import get_user_activities_path
 from sugar3 import mime
 
 from jarabe.view import customizebundle
+from jarabe.util.screen import get_screen_size
 
 _EXCLUDE_EXTENSIONS = ('.pyc', '.pyo', '.so', '.o', '.a', '.la', '.mo', '~',
                        '.xo', '.tar', '.bz2', '.zip', '.gz')
@@ -185,8 +186,9 @@ class ViewSource(Gtk.Window):
         self.set_border_width(style.LINE_WIDTH)
         self.set_has_resize_grip(False)
 
-        width = (Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024) - style.GRID_CELL_SIZE * 2
-        height = (Gdk.Display.get_default().get_primary_monitor().get_geometry().height if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 768) - style.GRID_CELL_SIZE * 2
+        screen_width, screen_height = get_screen_size()
+        width = screen_width - style.GRID_CELL_SIZE * 2
+        height = screen_height - style.GRID_CELL_SIZE * 2
         self.set_size_request(width, height)
 
         self._parent_window = parent_window
@@ -802,7 +804,7 @@ class SourceDisplay(Gtk.ScrolledWindow):
             media_box.add(image)
 
         if icon:
-            h = (Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024) / 3
+            h = get_screen_size()[0] / 3
             icon = Icon(icon_name=icon, pixel_size=h)
             media_box.add(icon)
 

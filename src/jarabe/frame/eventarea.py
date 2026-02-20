@@ -19,6 +19,7 @@ from gi.repository import GObject
 from gi.repository import GLib
 
 from sugar3.graphics import style
+from jarabe.util.screen import get_screen_size
 
 
 _MAX_DELAY = 1000
@@ -65,8 +66,7 @@ class EventArea(GObject.GObject):
         self._edge_delay = min(settings.get_int('edge-delay'), _MAX_DELAY)
         self._corner_delay = min(settings.get_int('corner-delay'), _MAX_DELAY)
         ts = min(settings.get_int('trigger-size'), style.GRID_CELL_SIZE)
-        sw = (Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024)
-        sh = (Gdk.Display.get_default().get_primary_monitor().get_geometry().height if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 768)
+        sw, sh = get_screen_size()
 
         if self._edge_delay == _MAX_DELAY:
             self._hide(_EDGES)
@@ -148,4 +148,3 @@ class EventArea(GObject.GObject):
     def hide(self):
         for box in list(self._boxes.values()):
             box.hide()
-

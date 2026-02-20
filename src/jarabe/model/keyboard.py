@@ -21,6 +21,7 @@ gi.require_version('Xkl', '1.0')
 from gi.repository import Gio
 from gi.repository import Gdk
 from gi.repository import Xkl
+from jarabe.util.screen import get_default_display
 
 
 def setup():
@@ -28,7 +29,7 @@ def setup():
     have_config = False
 
     try:
-        display = Gdk.Display.get_default()
+        display = get_default_display()
         if display is not None:
             engine = Xkl.Engine.get_instance(display)
         else:

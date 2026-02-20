@@ -24,6 +24,7 @@ from sugar3.graphics import style
 
 from jarabe.model import shell
 from jarabe.view.pulsingicon import PulsingIcon
+from jarabe.util.screen import get_screen_size
 
 
 _INTERVAL = 100
@@ -42,7 +43,8 @@ class LaunchWindow(Gtk.Window):
         canvas.show()
         self.add(canvas)
 
-        bar_size = (Gdk.Display.get_default().get_primary_monitor().get_geometry().height if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 768) / 5 * 2
+        screen_width, screen_height = get_screen_size()
+        bar_size = screen_height / 5 * 2
 
         header = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         header.set_size_request(-1, bar_size)
@@ -50,7 +52,7 @@ class LaunchWindow(Gtk.Window):
         canvas.pack_start(header, False, True, 0)
 
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        box.set_size_request((Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024) / 5, -1)
+        box.set_size_request(screen_width / 5, -1)
         box.show()
         canvas.pack_start(box, True, True, 0)
 
@@ -98,7 +100,8 @@ class LaunchWindow(Gtk.Window):
         self.present()
 
     def _update_size(self):
-        self.resize((Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024), (Gdk.Display.get_default().get_primary_monitor().get_geometry().height if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 768))
+        screen_width, screen_height = get_screen_size()
+        self.resize(screen_width, screen_height)
 
     def __realize_cb(self, widget):
         return

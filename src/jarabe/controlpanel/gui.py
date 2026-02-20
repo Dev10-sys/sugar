@@ -31,6 +31,7 @@ from jarabe.controlpanel.toolbar import MainToolbar
 from jarabe.controlpanel.toolbar import SectionToolbar
 from jarabe import config
 from jarabe.model import shell
+from jarabe.util.screen import get_screen_size
 
 _logger = logging.getLogger('ControlPanel')
 
@@ -130,11 +131,12 @@ class ControlPanel(Gtk.Window):
         self._main_view.get_child().grab_focus()
 
     def _calculate_max_columns(self):
-        self._max_columns = int(0.285 * (float((Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024)) /
+        screen_width, screen_height = get_screen_size()
+        self._max_columns = int(0.285 * (float(screen_width) /
                                          style.GRID_CELL_SIZE - 3))
         offset = style.GRID_CELL_SIZE
-        width = (Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024) - offset * 2
-        height = (Gdk.Display.get_default().get_primary_monitor().get_geometry().height if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 768) - offset * 2
+        width = screen_width - offset * 2
+        height = screen_height - offset * 2
         self.set_size_request(width, height)
         if hasattr(self, '_table'):
             for child in self._table.get_children():

@@ -52,6 +52,7 @@ from jarabe.journal.palettes import CopyMenuBuilder
 from jarabe.journal.palettes import BatchOperator
 from jarabe.journal import journalwindow
 from jarabe.webservice import accountsmanager
+from jarabe.util.screen import get_screen_size
 
 
 _AUTOSEARCH_TIMEOUT = 1000
@@ -1022,8 +1023,9 @@ def set_palette_list(palette_list):
     menuitem_width = req2.width
     menuitem_height = req2.height
 
-    palette_width = (Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024) - style.GRID_CELL_SIZE
-    palette_height = (Gdk.Display.get_default().get_primary_monitor().get_geometry().height if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 768) - style.GRID_CELL_SIZE * 3
+    screen_width, screen_height = get_screen_size()
+    palette_width = screen_width - style.GRID_CELL_SIZE
+    palette_height = screen_height - style.GRID_CELL_SIZE * 3
 
     nx = min(_MAXIMUM_PALETTE_COLUMNS, int(palette_width / menuitem_width))
     ny = min(int(palette_height / menuitem_height), len(palette_list) + 1)

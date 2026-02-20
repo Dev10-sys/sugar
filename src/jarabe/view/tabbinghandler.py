@@ -19,6 +19,7 @@ from gi.repository import GLib
 from gi.repository import Gdk
 
 from jarabe.model import shell
+from jarabe.util.screen import get_default_display
 
 
 _RAISE_DELAY = 250
@@ -34,7 +35,7 @@ class TabbingHandler(object):
         self._keyboard = None
         self._mouse = None
 
-        display = Gdk.Display.get_default()
+        display = get_default_display()
         device_manager = display.get_device_manager()
         devices = device_manager.list_devices(Gdk.DeviceType.MASTER)
         for device in devices:

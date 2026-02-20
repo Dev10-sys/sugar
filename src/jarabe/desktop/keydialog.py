@@ -24,6 +24,7 @@ import dbus
 
 from sugar3.graphics import style
 from jarabe.model import network
+from jarabe.util.screen import get_screen_size
 
 
 IW_AUTH_ALG_OPEN_SYSTEM = 'open'
@@ -287,7 +288,8 @@ def create(ssid, flags, wpa_flags, rsn_flags, dev_caps, response):
     key_dialog.connect('response', _key_dialog_response_cb)
     key_dialog.show_all()
     width, height = key_dialog.get_size()
-    key_dialog.move((Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024) / 2 - width / 2,
+    screen_width, _ = get_screen_size()
+    key_dialog.move(screen_width / 2 - width / 2,
                     style.GRID_CELL_SIZE * 2)
 
 
