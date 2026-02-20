@@ -7,4 +7,5 @@ sugar_PYTHON =          \
 	display.py          \
 	downloader.py       \
 	httprange.py        \
-	normalize.py
+	normalize.py       \
+	screen.py

@@ -17,6 +17,7 @@ from gi.repository import Gdk
 
 from sugar3.graphics import style
 from sugar3.graphics.palette import WidgetInvoker
+from jarabe.util.screen import get_screen_size
 
 
 def _get_screen_area():
@@ -24,8 +25,9 @@ def _get_screen_area():
 
     screen_area = Gdk.Rectangle()
     screen_area.x = screen_area.y = frame_thickness
-    screen_area.width = Gdk.Screen.width() - frame_thickness
-    screen_area.height = Gdk.Screen.height() - frame_thickness
+    screen_width, screen_height = get_screen_size()
+    screen_area.width = screen_width - frame_thickness
+    screen_area.height = screen_height - frame_thickness
 
     return screen_area
 

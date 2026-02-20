@@ -17,9 +17,9 @@ from gi.repository import Gtk
 from gi.repository import Gdk
 from gi.repository import GObject
 from gi.repository import GLib
-from gi.repository import Wnck
 
 from sugar3.graphics import style
+from jarabe.util.screen import get_screen_size
 
 
 _MAX_DELAY = 1000
@@ -51,9 +51,6 @@ class EventArea(GObject.GObject):
         settings.connect('changed', self._settings_changed_cb)
         self._settings_changed_cb(settings, None)
 
-        screen = Wnck.Screen.get_default()
-        screen.connect('window-stacking-changed',
-                       self._window_stacking_changed_cb)
 
     def _box(self, tag):
         box = Gtk.Invisible()
@@ -69,8 +66,7 @@ class EventArea(GObject.GObject):
         self._edge_delay = min(settings.get_int('edge-delay'), _MAX_DELAY)
         self._corner_delay = min(settings.get_int('corner-delay'), _MAX_DELAY)
         ts = min(settings.get_int('trigger-size'), style.GRID_CELL_SIZE)
-        sw = Gdk.Screen.width()
-        sh = Gdk.Screen.height()
+        sw, sh = get_screen_size()
 
         if self._edge_delay == _MAX_DELAY:
             self._hide(_EDGES)
@@ -152,7 +148,3 @@ class EventArea(GObject.GObject):
     def hide(self):
         for box in list(self._boxes.values()):
             box.hide()
-
-    def _window_stacking_changed_cb(self, screen):
-        for box in list(self._boxes.values()):
-            box.get_window().raise_()

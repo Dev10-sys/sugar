@@ -19,7 +19,6 @@ import logging
 from gi.repository import GObject
 from gi.repository import Gtk
 from gi.repository import Gdk
-from gi.repository import Wnck
 
 from sugar3.graphics import style
 from sugar3.graphics.toolbutton import ToolButton
@@ -32,6 +31,7 @@ from jarabe.journal.volumestoolbar import VolumesToolbar
 from jarabe.model import bundleregistry
 
 from jarabe.journal.iconview import IconView
+from jarabe.util.screen import get_screen_size
 
 
 class ObjectChooser(Gtk.Window):
@@ -65,8 +65,8 @@ class ObjectChooser(Gtk.Window):
         else:
             self.connect('realize', self.__realize_cb, parent)
 
-            screen = Wnck.Screen.get_default()
-            screen.connect('window-closed', self.__window_closed_cb, parent)
+            if hasattr(parent, 'connect'):
+                parent.connect('destroy', self.__parent_destroy_cb)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(vbox)
@@ -106,19 +106,21 @@ class ObjectChooser(Gtk.Window):
             vbox.pack_start(self._icon_view, True, True, 0)
             self._icon_view.show()
 
-        width = Gdk.Screen.width() - style.GRID_CELL_SIZE * 2
-        height = Gdk.Screen.height() - style.GRID_CELL_SIZE * 2
+        screen_width, screen_height = get_screen_size()
+        width = screen_width - style.GRID_CELL_SIZE * 2
+        height = screen_height - style.GRID_CELL_SIZE * 2
         self.set_size_request(width, height)
 
         self._toolbar.update_filters('/', what_filter, filter_type)
 
     def __realize_cb(self, chooser, parent):
-        self.get_window().set_transient_for(parent)
+        if parent is not None and hasattr(parent, 'get_window') and \
+                parent.get_window() is not None:
+            self.get_window().set_transient_for(parent)
         # TODO: Should we disconnect the signal here?
 
-    def __window_closed_cb(self, screen, window, parent):
-        if window.get_xid() == parent.get_xid():
-            self.destroy()
+    def __parent_destroy_cb(self, parent):
+        self.destroy()
 
     def __entry_activated_cb(self, list_view, uid):
         self._selected_object_id = uid

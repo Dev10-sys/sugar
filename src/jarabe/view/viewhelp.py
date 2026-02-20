@@ -23,7 +23,6 @@ import json
 from gi.repository import Gtk
 from gi.repository import GObject
 from gi.repository import Gdk
-from gi.repository import GdkX11
 from gi.repository import Gio
 
 from sugar3 import env
@@ -34,6 +33,7 @@ from sugar3.graphics.radiotoolbutton import RadioToolButton
 from sugar3.bundle.activitybundle import get_bundle_instance
 from jarabe.model import shell
 from jarabe.view.viewhelp_webkit2 import Browser
+from jarabe.util.screen import get_screen_size
 
 
 _logger = logging.getLogger('ViewHelp')
@@ -123,13 +123,6 @@ def should_show_view_help(activity):
 def setup_view_help(activity):
     if activity.has_shell_window():
         return
-    # check whether the execution was from an activity
-    bundle_path = activity.get_bundle_path()
-    if bundle_path is None:
-        window_xid = 0
-    else:
-        # get activity name and window id
-        window_xid = activity.get_xid()
 
     if not should_show_view_help(activity):
         return
@@ -137,17 +130,23 @@ def setup_view_help(activity):
     if shell.get_model().has_modal():
         return
 
-    viewhelp = ViewHelp(activity, window_xid)
+    parent = activity.get_window()
+    if parent is not None and hasattr(parent, 'get_window') and \
+            parent.get_window() is not None:
+        safe_parent = parent
+    else:
+        safe_parent = None
+
+    viewhelp = ViewHelp(activity, safe_parent)
     activity.push_shell_window(viewhelp)
     viewhelp.connect('hide', activity.pop_shell_window)
     viewhelp.show()
 
 
 class ViewHelp(Gtk.Window):
-    parent_window_xid = None
 
-    def __init__(self, activity, window_xid):
-        self.parent_window_xid = window_xid
+    def __init__(self, activity, parent_window):
+        self._parent_window = parent_window
 
         url, title = get_help_url_and_title(activity)
         has_local_help = url is not None
@@ -165,8 +164,9 @@ class ViewHelp(Gtk.Window):
         self.set_border_width(style.LINE_WIDTH)
         self.set_has_resize_grip(False)
 
-        width = Gdk.Screen.width() - style.GRID_CELL_SIZE * 2
-        height = Gdk.Screen.height() - style.GRID_CELL_SIZE * 2
+        screen_width, screen_height = get_screen_size()
+        width = screen_width - style.GRID_CELL_SIZE * 2
+        height = screen_height - style.GRID_CELL_SIZE * 2
         self.set_size_request(width, height)
 
         self.connect('realize', self.__realize_cb)
@@ -226,10 +226,9 @@ class ViewHelp(Gtk.Window):
         self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
         window = self.get_window()
         window.set_accept_focus(True)
-        if self.parent_window_xid > 0:
-            display = Gdk.Display.get_default()
-            parent = GdkX11.X11Window.foreign_new_for_display(
-                display, self.parent_window_xid)
+        parent = self._parent_window
+        if parent is not None and hasattr(parent, 'get_window') and \
+                parent.get_window() is not None:
             window.set_transient_for(parent)
         shell.get_model().push_modal()
 

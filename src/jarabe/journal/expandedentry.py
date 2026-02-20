@@ -43,6 +43,7 @@ from jarabe.journal import journalwindow
 class Separator(Gtk.Box):
 
     def __init__(self, orientation):
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
         Gtk.Box.__init__(
             self, background_color=style.COLOR_PANEL_GREY.get_gdk_color())
         Gtk.Box.__init__(self, orientation=orientation)
@@ -59,6 +60,7 @@ class BuddyList(Gtk.Box):
                          orientation=Gtk.Orientation.HORIZONTAL,
                          spacing=style.DEFAULT_SPACING)
 
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         for buddy in buddies:
             nick_, color = buddy
             icon = CanvasIcon(icon_name='computer-xo',

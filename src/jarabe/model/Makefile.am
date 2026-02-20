@@ -1,6 +1,7 @@
 SUBDIRS = update
 sugardir = $(pythondir)/jarabe/model
 sugar_PYTHON =			\
+	activityregistry.py	\
 	adhoc.py		\
 	__init__.py		\
 	buddy.py		\

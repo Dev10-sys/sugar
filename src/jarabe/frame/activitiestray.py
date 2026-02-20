@@ -92,7 +92,8 @@ class ActivityButton(RadioToolButton):
             # Let's see if the X11 window can give us an icon.
             window = home_activity.get_window()
 
-            if not window.get_icon_is_fallback():
+            if window is not None and hasattr(window, 'get_icon_is_fallback') and \
+                    not window.get_icon_is_fallback():
                 pixbuf = window.get_icon()
                 self._icon.pixbuf = pixbuf
             else:

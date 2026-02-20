@@ -20,6 +20,7 @@ from gettext import gettext as _
 from sugar3.graphics.icon import Icon
 from sugar3.graphics import style
 from sugar3 import profile
+from jarabe.util.screen import get_screen_size
 
 
 class ModalAlert(Gtk.Window):
@@ -31,8 +32,9 @@ class ModalAlert(Gtk.Window):
 
         self.set_border_width(style.LINE_WIDTH)
         offset = style.GRID_CELL_SIZE
-        width = Gdk.Screen.width() - offset * 2
-        height = Gdk.Screen.height() - offset * 2
+        screen_width, screen_height = get_screen_size()
+        width = screen_width - offset * 2
+        height = screen_height - offset * 2
         self.set_size_request(width, height)
         self.set_position(Gtk.WindowPosition.CENTER_ALWAYS)
         self.set_decorated(False)

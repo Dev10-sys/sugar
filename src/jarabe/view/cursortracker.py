@@ -18,6 +18,7 @@ import logging
 from gi.repository import Gdk
 
 from gi.repository import SugarExt
+from jarabe.util.screen import get_default_display
 
 _instance = None
 
@@ -35,7 +36,7 @@ def setup():
     '''
     global _instance
 
-    display = Gdk.Display.get_default()
+    display = get_default_display()
     device_manager = display.get_device_manager()
     devices = device_manager.list_devices(Gdk.DeviceType.SLAVE)
     for device in devices:

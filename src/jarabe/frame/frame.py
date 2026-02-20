@@ -34,6 +34,7 @@ from jarabe.frame.framewindow import FrameWindow
 from jarabe.frame.clipboardpanelwindow import ClipboardPanelWindow
 from jarabe.frame.notification import NotificationIcon, NotificationWindow
 from jarabe.model import notifications
+from jarabe.util.screen import get_screen_size
 
 
 TOP_RIGHT = 0
@@ -190,8 +191,7 @@ class Frame(object):
         self.hide()
 
     def _update_position(self):
-        screen_h = Gdk.Screen.height()
-        screen_w = Gdk.Screen.width()
+        screen_w, screen_h = get_screen_size()
 
         self._move_panel(self._top_panel, self.current_position,
                          0, - self._top_panel.size, 0, 0)

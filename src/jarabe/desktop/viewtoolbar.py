@@ -216,6 +216,7 @@ class FavoritesButton(RadioToolButton):
         favorites_settings = favoritesview.get_settings(favorite_view)
         self._layout = favorites_settings.layout
 
+        # someday, this will be a grid container()
         # someday, this will be a Gtk.Grid()
         layouts_grid = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         layout_item = None

@@ -17,6 +17,7 @@ from gi.repository import Gtk
 from gi.repository import Gdk
 
 from sugar3.graphics import style
+from jarabe.util.screen import get_screen_size
 
 
 class FrameContainer(Gtk.Bin):
@@ -69,10 +70,10 @@ class FrameContainer(Gtk.Bin):
 
     def do_size_request(self, req):
         if self.is_vertical():
-            req.height = Gdk.Screen.height()
+            req.height = get_screen_size()[1]
             req.width = style.GRID_CELL_SIZE + style.LINE_WIDTH
         else:
-            req.width = Gdk.Screen.width()
+            req.width = get_screen_size()[0]
             req.height = style.GRID_CELL_SIZE + style.LINE_WIDTH
 
         self.get_child().size_request()
@@ -137,9 +138,9 @@ class FrameWindow(Gtk.Window):
     def _update_size(self):
         if self._position == Gtk.PositionType.TOP \
                 or self._position == Gtk.PositionType.BOTTOM:
-            self.resize(Gdk.Screen.width(), self.size)
+            self.resize(get_screen_size()[0], self.size)
         else:
-            self.resize(self.size, Gdk.Screen.height())
+            self.resize(self.size, get_screen_size()[1])
 
     def _realize_cb(self, widget):
         self.set_type_hint(Gdk.WindowTypeHint.DOCK)

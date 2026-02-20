@@ -20,7 +20,6 @@ from gi.repository import GLib
 from gi.repository import Gtk
 from gi.repository import Gdk
 from gi.repository import Gio
-from gi.repository import GdkX11
 
 from sugar3.graphics import style
 from sugar3.graphics import palettegroup
@@ -33,6 +32,7 @@ from jarabe.desktop.transitionbox import TransitionBox
 from jarabe.desktop.viewtoolbar import ViewToolbar
 from jarabe.model.shell import ShellModel
 from jarabe.model import shell
+from jarabe.util.screen import get_default_display
 
 
 _HOME_PAGE = 0
@@ -202,7 +202,7 @@ class HomeWindow(Gtk.Window):
         return False
 
     def __alt_timeout_cb(self):
-        display = Gdk.Display.get_default()
+        display = get_default_display()
         screen_, x_, y_, modmask = display.get_pointer()
         if modmask & Gdk.ModifierType.MOD1_MASK:
             return True
@@ -218,11 +218,10 @@ class HomeWindow(Gtk.Window):
     def __map_event_cb(self, window, event):
         # have to make the desktop window active
         # since metacity doesn't make it on startup
-        timestamp = event.get_time()
-        x11_window = self.get_window()
-        if not timestamp:
-            timestamp = GdkX11.x11_get_server_time(x11_window)
-        x11_window.focus(timestamp)
+        timestamp = event.get_time() or Gtk.get_current_event_time()
+        window = self.get_window()
+        if window is not None:
+            window.focus(timestamp)
 
     def __zoom_level_changed_cb(self, **kwargs):
         old_level = kwargs['old_level']
@@ -235,8 +234,8 @@ class HomeWindow(Gtk.Window):
            new_level != ShellModel.ZOOM_ACTIVITY:
             self._hide_alert()
             children = self._box.get_children()
-            if len(children) >= 2:
-                self._box.remove(children[1])
+            for child in children[1:]:
+                self._box.remove(child)
             self._box.pack_start(self._transition_box, True, True, 0)
             self._transition_box.show()
 
@@ -267,8 +266,8 @@ class HomeWindow(Gtk.Window):
 
         self._hide_alert()
         children = self._box.get_children()
-        if len(children) >= 2:
-            self._box.remove(children[1])
+        for child in children[1:]:
+            self._box.remove(child)
 
         if level == ShellModel.ZOOM_HOME:
             self._box.pack_start(self._home_box, True, True, 0)

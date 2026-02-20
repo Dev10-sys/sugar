@@ -29,7 +29,6 @@ from gi.repository import GLib
 from gi.repository import Pango
 from gi.repository import Gtk
 from gi.repository import Gdk
-from gi.repository import GdkX11
 from gi.repository import GtkSource
 from gi.repository import GdkPixbuf
 import dbus
@@ -51,6 +50,7 @@ from sugar3.env import get_user_activities_path
 from sugar3 import mime
 
 from jarabe.view import customizebundle
+from jarabe.util.screen import get_screen_size
 
 _EXCLUDE_EXTENSIONS = ('.pyc', '.pyo', '.so', '.o', '.a', '.la', '.mo', '~',
                        '.xo', '.tar', '.bz2', '.zip', '.gz')
@@ -127,17 +127,18 @@ def setup_view_source(activity):
         except Exception:
             logging.exception('Exception occurred in HandleViewSource():')
 
-    window_xid = activity.get_xid()
-    if window_xid is None:
-        _logger.error('Activity without a window xid')
-        return
+    parent = activity.get_window()
+    if parent is not None and hasattr(parent, 'get_window') and \
+            parent.get_window() is not None:
+        parent_window = parent
+    else:
+        parent_window = None
 
     bundle_path = activity.get_bundle_path()
     bundle_id = activity.get_bundle_id()
 
     if activity.has_shell_window():
-        _logger.debug('A window is already open for %s %s', window_xid,
-                      bundle_path)
+        _logger.debug('A window is already open for %s', bundle_path)
         return
 
     document_path = None
@@ -162,7 +163,7 @@ def setup_view_source(activity):
     if sugar_toolkit_path is None:
         _logger.error("Path to toolkit not found.")
 
-    view_source = ViewSource(window_xid, bundle_path, document_path,
+    view_source = ViewSource(parent_window, bundle_path, document_path,
                              sugar_toolkit_path, activity.get_title())
     activity.push_shell_window(view_source)
     view_source.connect('hide', activity.pop_shell_window)
@@ -172,7 +173,7 @@ def setup_view_source(activity):
 class ViewSource(Gtk.Window):
     __gtype_name__ = 'SugarViewSource'
 
-    def __init__(self, window_xid, bundle_path, document_path,
+    def __init__(self, parent_window, bundle_path, document_path,
                  sugar_toolkit_path, title):
         Gtk.Window.__init__(self)
 
@@ -185,11 +186,12 @@ class ViewSource(Gtk.Window):
         self.set_border_width(style.LINE_WIDTH)
         self.set_has_resize_grip(False)
 
-        width = Gdk.Screen.width() - style.GRID_CELL_SIZE * 2
-        height = Gdk.Screen.height() - style.GRID_CELL_SIZE * 2
+        screen_width, screen_height = get_screen_size()
+        width = screen_width - style.GRID_CELL_SIZE * 2
+        height = screen_height - style.GRID_CELL_SIZE * 2
         self.set_size_request(width, height)
 
-        self._parent_window_xid = window_xid
+        self._parent_window = parent_window
         self._sugar_toolkit_path = sugar_toolkit_path
         self._gdk_window = self.get_window()
 
@@ -293,10 +295,10 @@ class ViewSource(Gtk.Window):
         window = self.get_window()
         window.set_accept_focus(True)
 
-        display = Gdk.Display.get_default()
-        parent = GdkX11.X11Window.foreign_new_for_display(
-            display, self._parent_window_xid)
-        window.set_transient_for(parent)
+        parent = self._parent_window
+        if parent is not None and hasattr(parent, 'get_window') and \
+                parent.get_window() is not None:
+            window.set_transient_for(parent)
 
     def __stop_clicked_cb(self, widget):
         self.destroy()
@@ -805,7 +807,7 @@ class SourceDisplay(Gtk.ScrolledWindow):
             media_box.add(image)
 
         if icon:
-            h = Gdk.Screen.width() / 3
+            h = get_screen_size()[0] / 3
             icon = Icon(icon_name=icon, pixel_size=h)
             media_box.add(icon)
 

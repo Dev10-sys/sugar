@@ -20,11 +20,11 @@ from gi.repository import Gio
 from gi.repository import Gtk
 from gi.repository import Gdk
 
-from gi.repository import SugarExt
 from sugar3.graphics import style
 
 from jarabe.model import shell
 from jarabe.view.pulsingicon import PulsingIcon
+from jarabe.util.screen import get_screen_size
 
 
 _INTERVAL = 100
@@ -43,7 +43,8 @@ class LaunchWindow(Gtk.Window):
         canvas.show()
         self.add(canvas)
 
-        bar_size = Gdk.Screen.height() / 5 * 2
+        screen_width, screen_height = get_screen_size()
+        bar_size = screen_height / 5 * 2
 
         header = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         header.set_size_request(-1, bar_size)
@@ -51,6 +52,7 @@ class LaunchWindow(Gtk.Window):
         canvas.pack_start(header, False, True, 0)
 
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        box.set_size_request(screen_width / 5, -1)
         box.set_size_request(Gdk.Screen.width() / 5, -1)
         box.show()
         canvas.pack_start(box, True, True, 0)
@@ -101,11 +103,11 @@ class LaunchWindow(Gtk.Window):
         self.present()
 
     def _update_size(self):
-        self.resize(Gdk.Screen.width(), Gdk.Screen.height())
+        screen_width, screen_height = get_screen_size()
+        self.resize(screen_width, screen_height)
 
     def __realize_cb(self, widget):
-        SugarExt.wm_set_activity_id(widget.get_window().get_xid(),
-                                    str(self._activity_id))
+        return
 
     def __size_changed_cb(self, screen):
         self._update_size()

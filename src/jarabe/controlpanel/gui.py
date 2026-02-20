@@ -21,7 +21,6 @@ from gi.repository import GObject
 from gi.repository import GLib
 from gi.repository import Gtk
 from gi.repository import Gdk
-from gi.repository import GdkX11
 
 from sugar3.graphics.icon import Icon
 from sugar3.graphics import style
@@ -32,6 +31,7 @@ from jarabe.controlpanel.toolbar import MainToolbar
 from jarabe.controlpanel.toolbar import SectionToolbar
 from jarabe import config
 from jarabe.model import shell
+from jarabe.util.screen import get_screen_size
 
 _logger = logging.getLogger('ControlPanel')
 
@@ -39,8 +39,8 @@ _logger = logging.getLogger('ControlPanel')
 class ControlPanel(Gtk.Window):
     __gtype_name__ = 'SugarControlPanel'
 
-    def __init__(self, window_xid=0):
-        self.parent_window_xid = window_xid
+    def __init__(self, parent_window=None):
+        self._parent_window = parent_window
         Gtk.Window.__init__(self)
 
         self._calculate_max_columns()
@@ -96,10 +96,9 @@ class ControlPanel(Gtk.Window):
         self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
         window = self.get_window()
         window.set_accept_focus(True)
-        if self.parent_window_xid > 0:
-            display = Gdk.Display.get_default()
-            parent = GdkX11.X11Window.foreign_new_for_display(
-                display, self.parent_window_xid)
+        parent = self._parent_window
+        if parent is not None and hasattr(parent, 'get_window') and \
+                parent.get_window() is not None:
             window.set_transient_for(parent)
 
         # the modal windows counter is updated to disable hot keys - SL#4601
@@ -135,11 +134,12 @@ class ControlPanel(Gtk.Window):
         self._main_view.get_child().grab_focus()
 
     def _calculate_max_columns(self):
-        self._max_columns = int(0.285 * (float(Gdk.Screen.width()) /
+        screen_width, screen_height = get_screen_size()
+        self._max_columns = int(0.285 * (float(screen_width) /
                                          style.GRID_CELL_SIZE - 3))
         offset = style.GRID_CELL_SIZE
-        width = Gdk.Screen.width() - offset * 2
-        height = Gdk.Screen.height() - offset * 2
+        width = screen_width - offset * 2
+        height = screen_height - offset * 2
         self.set_size_request(width, height)
         if hasattr(self, '_table'):
             for child in self._table.get_children():
@@ -217,6 +217,9 @@ class ControlPanel(Gtk.Window):
             elif option == 'aboutcomputer':
                 self._table.attach(sectionicon, 1, 0, 1, 1)
             else:
+                self._table.attach(sectionicon,
+                                   column, row,
+                                   1, 1)
                 self._table.attach(sectionicon, column, row, 1, 1)
                 column += 1
                 if column == self._max_columns:
