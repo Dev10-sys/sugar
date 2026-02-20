@@ -21,7 +21,6 @@ from gi.repository import Gio
 from gi.repository import GObject
 from gi.repository import Gtk
 from gi.repository import Gdk
-from gi.repository import GdkX11
 from gi.repository import GLib
 import dbus
 
@@ -31,6 +30,7 @@ from gi.repository import SugarExt
 
 from jarabe.model.bundleregistry import get_registry
 from jarabe.util.backend import is_x11_backend
+from jarabe.util.backend import get_gdkx11
 from jarabe.util.windowbackend import get_window_backend
 
 _SERVICE_NAME = 'org.laptop.Activity'
@@ -362,10 +362,9 @@ class Activity(GObject.GObject):
     def _state_changed_cb(self, main_window, changed_mask, new_state):
         if get_model()._window_backend.is_window_state_minimized_changed(
                 changed_mask, new_state):
-            if main_window.is_minimized():
-                self.emit('pause')
-            else:
-                self.emit('resume')
+            self.emit('pause')
+        else:
+            self.emit('resume')
 
 
 class ShellModel(GObject.GObject):
@@ -598,9 +597,11 @@ class ShellModel(GObject.GObject):
 
                 display = Gdk.Display.get_default()
                 if is_x11_backend():
-                    gdk_window = GdkX11.X11Window.foreign_new_for_display(
-                        display, xid)
-                    gdk_window.set_decorations(0)
+                    GdkX11 = get_gdkx11()
+                    if GdkX11:
+                        gdk_window = GdkX11.X11Window.foreign_new_for_display(
+                            display, xid)
+                        gdk_window.set_decorations(0)
 
                 window.maximize()
 
