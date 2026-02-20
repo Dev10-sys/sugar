@@ -379,8 +379,9 @@ def handle_bundle_installation(metadata, force_downgrade=False):
     registry = bundleregistry.get_registry()
 
     window = journalwindow.get_journal_window().get_window()
-    window.set_cursor(Gdk.Cursor(Gdk.CursorType.WATCH))
-    Gdk.flush()
+    if window is not None:
+        window.set_cursor(Gdk.Cursor(Gdk.CursorType.WATCH))
+        Gdk.flush()
 
     try:
         installed = registry.install(bundle, force_downgrade)
@@ -390,8 +391,9 @@ def handle_bundle_installation(metadata, force_downgrade=False):
         logging.exception('Could not install bundle %s', bundle.get_path())
         return None, False
     finally:
-        window.set_cursor(None)
-        Gdk.flush()
+        if window is not None:
+            window.set_cursor(None)
+            Gdk.flush()
 
     # If we just installed a bundle, update the datastore accordingly.
     # We do not do this for JournalEntryBundles because the JEB code transforms

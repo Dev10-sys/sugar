@@ -68,11 +68,12 @@ class FrameContainer(Gtk.Bin):
         return False
 
     def do_size_request(self, req):
+        screen = Gdk.Screen.get_default()
         if self.is_vertical():
-            req.height = Gdk.Screen.height()
+            req.height = screen.get_height()
             req.width = style.GRID_CELL_SIZE + style.LINE_WIDTH
         else:
-            req.width = Gdk.Screen.width()
+            req.width = screen.get_width()
             req.height = style.GRID_CELL_SIZE + style.LINE_WIDTH
 
         self.get_child().size_request()
@@ -135,11 +136,12 @@ class FrameWindow(Gtk.Window):
                                                padding=0)
 
     def _update_size(self):
+        screen = Gdk.Screen.get_default()
         if self._position == Gtk.PositionType.TOP \
                 or self._position == Gtk.PositionType.BOTTOM:
-            self.resize(Gdk.Screen.width(), self.size)
+            self.resize(screen.get_width(), self.size)
         else:
-            self.resize(self.size, Gdk.Screen.height())
+            self.resize(self.size, screen.get_height())
 
     def _realize_cb(self, widget):
         self.set_type_hint(Gdk.WindowTypeHint.DOCK)

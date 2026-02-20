@@ -33,6 +33,7 @@ from jarabe.desktop.transitionbox import TransitionBox
 from jarabe.desktop.viewtoolbar import ViewToolbar
 from jarabe.model.shell import ShellModel
 from jarabe.model import shell
+from jarabe.util.backend import is_x11_backend
 
 
 _HOME_PAGE = 0
@@ -221,7 +222,10 @@ class HomeWindow(Gtk.Window):
         timestamp = event.get_time()
         x11_window = self.get_window()
         if not timestamp:
-            timestamp = GdkX11.x11_get_server_time(x11_window)
+            if is_x11_backend():
+                timestamp = GdkX11.x11_get_server_time(x11_window)
+            else:
+                timestamp = Gtk.get_current_event_time()
         x11_window.focus(timestamp)
 
     def __zoom_level_changed_cb(self, **kwargs):
@@ -295,7 +299,9 @@ class HomeWindow(Gtk.Window):
 
     def busy(self):
         if self._busy_count == 0:
-            self._old_cursor = self.get_window().get_cursor()
+            gdk_window = self.get_window()
+            if gdk_window is not None:
+                self._old_cursor = gdk_window.get_cursor()
             self._set_cursor(Gdk.Cursor.new(Gdk.CursorType.WATCH))
         self._busy_count += 1
 
@@ -305,7 +311,9 @@ class HomeWindow(Gtk.Window):
             self._set_cursor(self._old_cursor)
 
     def _set_cursor(self, cursor):
-        self.get_window().set_cursor(cursor)
+        gdk_window = self.get_window()
+        if gdk_window is not None:
+            gdk_window.set_cursor(cursor)
         Gdk.flush()
 
 

@@ -1022,8 +1022,9 @@ def set_palette_list(palette_list):
     menuitem_width = req2.width
     menuitem_height = req2.height
 
-    palette_width = Gdk.Screen.width() - style.GRID_CELL_SIZE
-    palette_height = Gdk.Screen.height() - style.GRID_CELL_SIZE * 3
+    screen = Gdk.Screen.get_default()
+    palette_width = screen.get_width() - style.GRID_CELL_SIZE
+    palette_height = screen.get_height() - style.GRID_CELL_SIZE * 3
 
     nx = min(_MAXIMUM_PALETTE_COLUMNS, int(palette_width / menuitem_width))
     ny = min(int(palette_height / menuitem_height), len(palette_list) + 1)

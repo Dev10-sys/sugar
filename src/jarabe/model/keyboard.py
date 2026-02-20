@@ -19,8 +19,9 @@ import logging
 import gi
 gi.require_version('Xkl', '1.0')
 from gi.repository import Gio
-from gi.repository import GdkX11
 from gi.repository import Xkl
+from jarabe.util.backend import get_gdkx11
+from jarabe.util.backend import is_x11_backend
 
 
 def setup():
@@ -28,12 +29,18 @@ def setup():
     have_config = False
 
     try:
+        if not is_x11_backend():
+            return
+
+        GdkX11 = get_gdkx11()
+        if GdkX11 is None:
+            return
+
         display = GdkX11.x11_get_default_xdisplay()
-        if display is not None:
-            engine = Xkl.Engine.get_instance(display)
-        else:
+        if display is None:
             logging.debug('setup_keyboard_cb: Could not get default display.')
             return
+        engine = Xkl.Engine.get_instance(display)
 
         configrec = Xkl.ConfigRec()
         configrec.get_from_server(engine)

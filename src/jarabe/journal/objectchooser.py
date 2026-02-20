@@ -19,7 +19,6 @@ import logging
 from gi.repository import GObject
 from gi.repository import Gtk
 from gi.repository import Gdk
-from gi.repository import Wnck
 
 from sugar3.graphics import style
 from sugar3.graphics.toolbutton import ToolButton
@@ -30,6 +29,7 @@ from jarabe.journal.listmodel import ListModel
 from jarabe.journal.journaltoolbox import MainToolbox
 from jarabe.journal.volumestoolbar import VolumesToolbar
 from jarabe.model import bundleregistry
+from jarabe.util.backend import is_x11_backend
 
 from jarabe.journal.iconview import IconView
 
@@ -65,8 +65,11 @@ class ObjectChooser(Gtk.Window):
         else:
             self.connect('realize', self.__realize_cb, parent)
 
-            screen = Wnck.Screen.get_default()
-            screen.connect('window-closed', self.__window_closed_cb, parent)
+            if is_x11_backend():
+                from gi.repository import Wnck
+                screen = Wnck.Screen.get_default()
+                screen.connect('window-closed', self.__window_closed_cb,
+                               parent)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(vbox)
@@ -106,8 +109,9 @@ class ObjectChooser(Gtk.Window):
             vbox.pack_start(self._icon_view, True, True, 0)
             self._icon_view.show()
 
-        width = Gdk.Screen.width() - style.GRID_CELL_SIZE * 2
-        height = Gdk.Screen.height() - style.GRID_CELL_SIZE * 2
+        screen = Gdk.Screen.get_default()
+        width = screen.get_width() - style.GRID_CELL_SIZE * 2
+        height = screen.get_height() - style.GRID_CELL_SIZE * 2
         self.set_size_request(width, height)
 
         self._toolbar.update_filters('/', what_filter, filter_type)
@@ -117,7 +121,7 @@ class ObjectChooser(Gtk.Window):
         # TODO: Should we disconnect the signal here?
 
     def __window_closed_cb(self, screen, window, parent):
-        if window.get_xid() == parent.get_xid():
+        if is_x11_backend() and window.get_xid() == parent.get_xid():
             self.destroy()
 
     def __entry_activated_cb(self, list_view, uid):

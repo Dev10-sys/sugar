@@ -58,7 +58,6 @@ from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Gtk
 from gi.repository import Gst
-from gi.repository import Wnck
 
 from sugar3 import env
 
@@ -83,6 +82,7 @@ from jarabe.view.service import UIService
 from jarabe import apisocket
 from jarabe import testrunner
 from jarabe.model import brightness
+from jarabe.util.backend import is_x11_backend
 
 
 _metacity_process = None
@@ -204,15 +204,18 @@ def _start_window_manager():
 
     _restart_window_manager()
 
-    screen = Wnck.Screen.get_default()
-    screen.connect('window-manager-changed', __window_manager_changed_cb)
+    if is_x11_backend():
+        from gi.repository import Wnck
+        screen = Wnck.Screen.get_default()
+        screen.connect('window-manager-changed', __window_manager_changed_cb)
 
-    _check_for_window_manager(screen)
+        _check_for_window_manager(screen)
 
 
 def _stop_window_manager():
     _cursor_theme_settings.set_string('cursor-theme', _cursor_theme)
-    _metacity_process.terminate()
+    if is_x11_backend():
+        _metacity_process.terminate()
 
 
 def _begin_desktop_startup():

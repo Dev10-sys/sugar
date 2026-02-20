@@ -18,11 +18,9 @@ import logging
 import time
 
 from gi.repository import Gio
-from gi.repository import Wnck
 from gi.repository import GObject
 from gi.repository import Gtk
 from gi.repository import Gdk
-from gi.repository import GdkX11
 from gi.repository import GLib
 import dbus
 
@@ -31,6 +29,9 @@ from sugar3 import profile
 from gi.repository import SugarExt
 
 from jarabe.model.bundleregistry import get_registry
+from jarabe.util.backend import is_x11_backend
+from jarabe.util.backend import get_gdkx11
+from jarabe.util.windowbackend import get_window_backend
 
 _SERVICE_NAME = 'org.laptop.Activity'
 _SERVICE_PATH = '/org/laptop/Activity'
@@ -152,6 +153,8 @@ class Activity(GObject.GObject):
 
     def remove_window_by_xid(self, xid):
         """Remove a window from the windows stack."""
+        if not is_x11_backend():
+            return False
         for wnd in self._windows:
             if wnd.get_xid() == xid:
                 self._windows.remove(wnd)
@@ -215,12 +218,16 @@ class Activity(GObject.GObject):
 
     def get_xid(self):
         """Retrieve the X-windows ID of our root window"""
+        if not is_x11_backend():
+            return None
         if self._windows:
             return self._windows[0].get_xid()
         return None
 
     def has_xid(self, xid):
         """Check if an X-window with the given xid is in the windows stack"""
+        if not is_x11_backend():
+            return False
         if self._windows:
             for wnd in self._windows:
                 if wnd.get_xid() == xid:
@@ -248,6 +255,8 @@ class Activity(GObject.GObject):
 
     def get_type(self):
         """Retrieve the activity bundle id for future reference"""
+        if not is_x11_backend():
+            return None
         if not self._windows:
             return None
         return SugarExt.wm_get_bundle_id(self._windows[0].get_xid())
@@ -285,7 +294,8 @@ class Activity(GObject.GObject):
     def equals(self, activity):
         if self._activity_id and activity.get_activity_id():
             return self._activity_id == activity.get_activity_id()
-        if self._windows[0].get_xid() and activity.get_xid():
+        if is_x11_backend() and self._windows[0].get_xid() and \
+                activity.get_xid():
             return self._windows[0].get_xid() == activity.get_xid()
         return False
 
@@ -350,11 +360,11 @@ class Activity(GObject.GObject):
             self._set_launch_status(Activity.LAUNCH_FAILED)
 
     def _state_changed_cb(self, main_window, changed_mask, new_state):
-        if changed_mask & Wnck.WindowState.MINIMIZED:
-            if new_state & Wnck.WindowState.MINIMIZED:
-                self.emit('pause')
-            else:
-                self.emit('resume')
+        if get_model()._window_backend.is_window_state_minimized_changed(
+                changed_mask, new_state):
+            self.emit('pause')
+        else:
+            self.emit('resume')
 
 
 class ShellModel(GObject.GObject):
@@ -399,11 +409,11 @@ class ShellModel(GObject.GObject):
     def __init__(self):
         GObject.GObject.__init__(self)
 
-        self._screen = Wnck.Screen.get_default()
-        self._screen.connect('window-opened', self._window_opened_cb)
-        self._screen.connect('window-closed', self._window_closed_cb)
-        self._screen.connect('active-window-changed',
-                             self._active_window_changed_cb)
+        self._window_backend = get_window_backend()
+        self._window_backend.connect_window_opened(self._window_opened_cb)
+        self._window_backend.connect_window_closed(self._window_closed_cb)
+        self._window_backend.connect_active_window_changed(
+            self._active_window_changed_cb)
 
         self.zoom_level_changed = dispatch.Signal()
 
@@ -417,7 +427,7 @@ class ShellModel(GObject.GObject):
         self._launchers = {}
         self._modal_dialogs_counter = 0
 
-        self._screen.toggle_showing_desktop(True)
+        self._window_backend.toggle_showing_desktop(True)
 
         settings = Gio.Settings.new('org.sugarlabs')
         self._maximum_open_activities = settings.get_int(
@@ -436,9 +446,9 @@ class ShellModel(GObject.GObject):
             del self._launchers[activity_id]
 
     def _update_zoom_level(self, window):
-        if window.get_window_type() == Wnck.WindowType.DIALOG:
+        if self._window_backend.is_window_dialog(window):
             return
-        if window.get_window_type() == Wnck.WindowType.NORMAL:
+        if self._window_backend.is_window_normal(window):
             new_level = self.ZOOM_ACTIVITY
         else:
             new_level = self._desktop_level
@@ -462,7 +472,7 @@ class ShellModel(GObject.GObject):
                                      new_level=new_level)
 
         show_desktop = new_level is not self.ZOOM_ACTIVITY
-        self._screen.toggle_showing_desktop(show_desktop)
+        self._window_backend.toggle_showing_desktop(show_desktop)
 
         if new_level is self.ZOOM_ACTIVITY:
             # activate the window, in case it was iconified
@@ -567,14 +577,15 @@ class ShellModel(GObject.GObject):
            them.
 
          """
-        if window.get_window_type() == Wnck.WindowType.NORMAL or \
-                window.get_window_type() == Wnck.WindowType.SPLASHSCREEN:
+        if self._window_backend.is_window_normal_or_splash(window):
             home_activity = None
-            xid = window.get_xid()
-
-            activity_id = SugarExt.wm_get_activity_id(xid)
-
-            service_name = SugarExt.wm_get_bundle_id(xid)
+            xid = None
+            activity_id = None
+            service_name = None
+            if is_x11_backend():
+                xid = window.get_xid()
+                activity_id = SugarExt.wm_get_activity_id(xid)
+                service_name = SugarExt.wm_get_bundle_id(xid)
             if service_name:
                 registry = get_registry()
                 activity_info = registry.get_bundle(service_name)
@@ -585,21 +596,23 @@ class ShellModel(GObject.GObject):
                 home_activity = self.get_activity_by_id(activity_id)
 
                 display = Gdk.Display.get_default()
-                gdk_window = GdkX11.X11Window.foreign_new_for_display(display,
-                                                                      xid)
-                gdk_window.set_decorations(0)
+                if is_x11_backend():
+                    GdkX11 = get_gdkx11()
+                    if GdkX11:
+                        gdk_window = GdkX11.X11Window.foreign_new_for_display(
+                            display, xid)
+                        gdk_window.set_decorations(0)
 
                 window.maximize()
 
             def is_main_window(window, home_activity):
                 # Check if window is the 'main' app window, not the
                 # launcher window.
-                return window.get_window_type() != \
-                    Wnck.WindowType.SPLASHSCREEN and \
+                return self._window_backend.is_window_normal(window) and \
                     home_activity.get_launch_status() == Activity.LAUNCHING
 
             if home_activity is None and \
-                    window.get_window_type() == Wnck.WindowType.NORMAL:
+                    self._window_backend.is_window_normal(window):
                 # This is a special case for the Journal
                 # We check if is not a splash screen to avoid #4767
                 logging.debug('first window registered for %s', activity_id)
@@ -624,12 +637,17 @@ class ShellModel(GObject.GObject):
                 self._set_active_activity(home_activity)
 
     def _window_closed_cb(self, screen, window):
-        if window.get_window_type() == Wnck.WindowType.NORMAL or \
-                window.get_window_type() == Wnck.WindowType.SPLASHSCREEN:
-            xid = window.get_xid()
-            activity = self._get_activity_by_xid(xid)
+        if self._window_backend.is_window_normal_or_splash(window):
+            if is_x11_backend():
+                xid = window.get_xid()
+                activity = self._get_activity_by_xid(xid)
+            else:
+                activity = self._get_activity_by_window(window)
             if activity is not None:
-                activity.remove_window_by_xid(xid)
+                if is_x11_backend():
+                    activity.remove_window_by_xid(xid)
+                elif window in activity._windows:
+                    activity._windows.remove(window)
                 if activity.get_window() is None:
                     logging.debug('last window gone - remove activity %s',
                                   activity)
@@ -642,6 +660,12 @@ class ShellModel(GObject.GObject):
                 return home_activity
         return None
 
+    def _get_activity_by_window(self, window):
+        for home_activity in self._activities:
+            if window in home_activity._windows:
+                return home_activity
+        return None
+
     def get_activity_by_id(self, activity_id):
         for home_activity in self._activities:
             if home_activity.get_activity_id() == activity_id:
@@ -649,15 +673,18 @@ class ShellModel(GObject.GObject):
         return None
 
     def _active_window_changed_cb(self, screen, previous_window=None):
-        window = screen.get_active_window()
+        window = self._window_backend.get_active_window()
         if window is None:
             return
 
-        if window.get_window_type() != Wnck.WindowType.DIALOG:
+        if not self._window_backend.is_window_dialog(window):
             while window.get_transient() is not None:
                 window = window.get_transient()
 
-        act = self._get_activity_by_xid(window.get_xid())
+        if is_x11_backend():
+            act = self._get_activity_by_xid(window.get_xid())
+        else:
+            act = self._get_activity_by_window(window)
         if act is not None:
             self._set_active_activity(act)
 
@@ -690,10 +717,13 @@ class ShellModel(GObject.GObject):
 
     def _remove_activity(self, home_activity):
         if home_activity == self._active_activity:
-            windows = Wnck.Screen.get_default().get_windows_stacked()
+            windows = self._window_backend.get_windows_stacked()
             windows.reverse()
             for window in windows:
-                new_activity = self._get_activity_by_xid(window.get_xid())
+                if is_x11_backend():
+                    new_activity = self._get_activity_by_xid(window.get_xid())
+                else:
+                    new_activity = self._get_activity_by_window(window)
                 if new_activity is not None:
                     self._set_active_activity(new_activity)
                     break

@@ -54,6 +54,7 @@ from jarabe.journal import journalwindow
 from jarabe.journal.listmodel import ListModel
 
 from jarabe.model import session, shell
+from jarabe.util.backend import is_x11_backend
 
 from sugar3.graphics import style
 
@@ -147,8 +148,11 @@ class JournalActivityDBusService(dbus.service.Object):
         chooser_id = uuid.uuid4().hex
         if parent_xid > 0:
             display = Gdk.Display.get_default()
-            parent = GdkX11.X11Window.foreign_new_for_display(
-                display, parent_xid)
+            if is_x11_backend():
+                parent = GdkX11.X11Window.foreign_new_for_display(
+                    display, parent_xid)
+            else:
+                parent = None
         else:
             parent = None
         chooser = ObjectChooser(parent, what_filter)
@@ -164,8 +168,11 @@ class JournalActivityDBusService(dbus.service.Object):
         chooser_id = uuid.uuid4().hex
         if parent_xid > 0:
             display = Gdk.Display.get_default()
-            parent = GdkX11.X11Window.foreign_new_for_display(
-                display, parent_xid)
+            if is_x11_backend():
+                parent = GdkX11.X11Window.foreign_new_for_display(
+                    display, parent_xid)
+            else:
+                parent = None
         else:
             parent = None
         chooser = ObjectChooser(parent, what_filter, filter_type, show_preview)
@@ -245,10 +252,11 @@ class JournalActivity(JournalWindow):
         self.remove_alert(alert)
 
     def __realize_cb(self, window):
-        xid = window.get_window().get_xid()
-        SugarExt.wm_set_bundle_id(xid, _BUNDLE_ID)
-        activity_id = activityfactory.create_activity_id()
-        SugarExt.wm_set_activity_id(xid, str(activity_id))
+        if is_x11_backend():
+            xid = window.get_window().get_xid()
+            SugarExt.wm_set_bundle_id(xid, _BUNDLE_ID)
+            activity_id = activityfactory.create_activity_id()
+            SugarExt.wm_set_activity_id(xid, str(activity_id))
         self.disconnect(self._realized_sid)
         self._realized_sid = None
 

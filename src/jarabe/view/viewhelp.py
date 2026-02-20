@@ -33,6 +33,7 @@ from sugar3.graphics.toolbutton import ToolButton
 from sugar3.graphics.radiotoolbutton import RadioToolButton
 from sugar3.bundle.activitybundle import get_bundle_instance
 from jarabe.model import shell
+from jarabe.util.backend import is_x11_backend
 from jarabe.view.viewhelp_webkit2 import Browser
 
 
@@ -165,8 +166,9 @@ class ViewHelp(Gtk.Window):
         self.set_border_width(style.LINE_WIDTH)
         self.set_has_resize_grip(False)
 
-        width = Gdk.Screen.width() - style.GRID_CELL_SIZE * 2
-        height = Gdk.Screen.height() - style.GRID_CELL_SIZE * 2
+        screen = Gdk.Screen.get_default()
+        width = screen.get_width() - style.GRID_CELL_SIZE * 2
+        height = screen.get_height() - style.GRID_CELL_SIZE * 2
         self.set_size_request(width, height)
 
         self.connect('realize', self.__realize_cb)
@@ -228,9 +230,10 @@ class ViewHelp(Gtk.Window):
         window.set_accept_focus(True)
         if self.parent_window_xid > 0:
             display = Gdk.Display.get_default()
-            parent = GdkX11.X11Window.foreign_new_for_display(
-                display, self.parent_window_xid)
-            window.set_transient_for(parent)
+            if is_x11_backend():
+                parent = GdkX11.X11Window.foreign_new_for_display(
+                    display, self.parent_window_xid)
+                window.set_transient_for(parent)
         shell.get_model().push_modal()
 
     def __hide_cb(self, widget):

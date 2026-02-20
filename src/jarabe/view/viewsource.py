@@ -49,6 +49,7 @@ from sugar3.bundle.activitybundle import get_bundle_instance
 from sugar3.datastore import datastore
 from sugar3.env import get_user_activities_path
 from sugar3 import mime
+from jarabe.util.backend import is_x11_backend
 
 from jarabe.view import customizebundle
 
@@ -185,13 +186,13 @@ class ViewSource(Gtk.Window):
         self.set_border_width(style.LINE_WIDTH)
         self.set_has_resize_grip(False)
 
-        width = Gdk.Screen.width() - style.GRID_CELL_SIZE * 2
-        height = Gdk.Screen.height() - style.GRID_CELL_SIZE * 2
+        screen = Gdk.Screen.get_default()
+        width = screen.get_width() - style.GRID_CELL_SIZE * 2
+        height = screen.get_height() - style.GRID_CELL_SIZE * 2
         self.set_size_request(width, height)
 
         self._parent_window_xid = window_xid
         self._sugar_toolkit_path = sugar_toolkit_path
-        self._gdk_window = self.get_window()
 
         self.connect('realize', self.__realize_cb)
         self.connect('destroy', self.__destroy_cb, document_path)
@@ -294,9 +295,10 @@ class ViewSource(Gtk.Window):
         window.set_accept_focus(True)
 
         display = Gdk.Display.get_default()
-        parent = GdkX11.X11Window.foreign_new_for_display(
-            display, self._parent_window_xid)
-        window.set_transient_for(parent)
+        if is_x11_backend():
+            parent = GdkX11.X11Window.foreign_new_for_display(
+                display, self._parent_window_xid)
+            window.set_transient_for(parent)
 
     def __stop_clicked_cb(self, widget):
         self.destroy()
@@ -805,7 +807,8 @@ class SourceDisplay(Gtk.ScrolledWindow):
             media_box.add(image)
 
         if icon:
-            h = Gdk.Screen.width() / 3
+            screen = Gdk.Screen.get_default()
+            h = screen.get_width() / 3
             icon = Icon(icon_name=icon, pixel_size=h)
             media_box.add(icon)
 

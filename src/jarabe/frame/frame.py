@@ -190,8 +190,9 @@ class Frame(object):
         self.hide()
 
     def _update_position(self):
-        screen_h = Gdk.Screen.height()
-        screen_w = Gdk.Screen.width()
+        screen = Gdk.Screen.get_default()
+        screen_h = screen.get_height()
+        screen_w = screen.get_width()
 
         self._move_panel(self._top_panel, self.current_position,
                          0, - self._top_panel.size, 0, 0)
