@@ -32,9 +32,9 @@ class FrameContainer(Gtk.Bin):
         self._position = position
 
         if self.is_vertical():
-            box = Gtk.VBox()
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         else:
-            box = Gtk.HBox()
+            box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         self.add(box)
         box.show()
 
@@ -69,10 +69,10 @@ class FrameContainer(Gtk.Bin):
 
     def do_size_request(self, req):
         if self.is_vertical():
-            req.height = Gdk.Screen.height()
+            req.height = (Gdk.Display.get_default().get_primary_monitor().get_geometry().height if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 768)
             req.width = style.GRID_CELL_SIZE + style.LINE_WIDTH
         else:
-            req.width = Gdk.Screen.width()
+            req.width = (Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024)
             req.height = style.GRID_CELL_SIZE + style.LINE_WIDTH
 
         self.get_child().size_request()
@@ -137,9 +137,9 @@ class FrameWindow(Gtk.Window):
     def _update_size(self):
         if self._position == Gtk.PositionType.TOP \
                 or self._position == Gtk.PositionType.BOTTOM:
-            self.resize(Gdk.Screen.width(), self.size)
+            self.resize((Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024), self.size)
         else:
-            self.resize(self.size, Gdk.Screen.height())
+            self.resize(self.size, (Gdk.Display.get_default().get_primary_monitor().get_geometry().height if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 768))
 
     def _realize_cb(self, widget):
         self.set_type_hint(Gdk.WindowTypeHint.DOCK)

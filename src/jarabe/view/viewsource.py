@@ -185,8 +185,8 @@ class ViewSource(Gtk.Window):
         self.set_border_width(style.LINE_WIDTH)
         self.set_has_resize_grip(False)
 
-        width = Gdk.Screen.width() - style.GRID_CELL_SIZE * 2
-        height = Gdk.Screen.height() - style.GRID_CELL_SIZE * 2
+        width = (Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024) - style.GRID_CELL_SIZE * 2
+        height = (Gdk.Display.get_default().get_primary_monitor().get_geometry().height if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 768) - style.GRID_CELL_SIZE * 2
         self.set_size_request(width, height)
 
         self._parent_window = parent_window
@@ -197,7 +197,7 @@ class ViewSource(Gtk.Window):
         self.connect('destroy', self.__destroy_cb, document_path)
         self.connect('key-press-event', self.__key_press_event_cb)
 
-        self._vbox = Gtk.VBox()
+        self._vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(self._vbox)
         self._vbox.show()
 
@@ -802,7 +802,7 @@ class SourceDisplay(Gtk.ScrolledWindow):
             media_box.add(image)
 
         if icon:
-            h = Gdk.Screen.width() / 3
+            h = (Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024) / 3
             icon = Icon(icon_name=icon, pixel_size=h)
             media_box.add(icon)
 

@@ -149,7 +149,7 @@ class WEPKeyDialog(KeyDialog):
         self.key_combo.set_active(0)
         self.key_combo.connect('changed', self.__key_combo_changed_cb)
 
-        hbox = Gtk.HBox()
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         hbox.pack_start(Gtk.Label(_('Key Type:')), True, True, 0)
         hbox.pack_start(self.key_combo, True, True, 0)
         hbox.show_all()
@@ -169,7 +169,7 @@ class WEPKeyDialog(KeyDialog):
         self.auth_combo.add_attribute(cell, 'text', 0)
         self.auth_combo.set_active(0)
 
-        hbox = Gtk.HBox()
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         hbox.pack_start(Gtk.Label(_('Authentication Type:')), True, True, 0)
         hbox.pack_start(self.auth_combo, True, True, 0)
         hbox.show_all()
@@ -242,7 +242,7 @@ class WPAKeyDialog(KeyDialog):
         self.combo.add_attribute(cell, 'text', 0)
         self.combo.set_active(0)
 
-        self.hbox = Gtk.HBox()
+        self.hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         self.hbox.pack_start(Gtk.Label(_('Wireless Security:')), True, True, 0)
         self.hbox.pack_start(self.combo, True, True, 0)
         self.hbox.show_all()
@@ -287,7 +287,7 @@ def create(ssid, flags, wpa_flags, rsn_flags, dev_caps, response):
     key_dialog.connect('response', _key_dialog_response_cb)
     key_dialog.show_all()
     width, height = key_dialog.get_size()
-    key_dialog.move(Gdk.Screen.width() / 2 - width / 2,
+    key_dialog.move((Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024) / 2 - width / 2,
                     style.GRID_CELL_SIZE * 2)
 
 

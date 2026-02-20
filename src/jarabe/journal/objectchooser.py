@@ -67,7 +67,7 @@ class ObjectChooser(Gtk.Window):
             if hasattr(parent, 'connect'):
                 parent.connect('destroy', self.__parent_destroy_cb)
 
-        vbox = Gtk.VBox()
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(vbox)
         vbox.show()
 
@@ -105,8 +105,8 @@ class ObjectChooser(Gtk.Window):
             vbox.pack_start(self._icon_view, True, True, 0)
             self._icon_view.show()
 
-        width = Gdk.Screen.width() - style.GRID_CELL_SIZE * 2
-        height = Gdk.Screen.height() - style.GRID_CELL_SIZE * 2
+        width = (Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024) - style.GRID_CELL_SIZE * 2
+        height = (Gdk.Display.get_default().get_primary_monitor().get_geometry().height if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 768) - style.GRID_CELL_SIZE * 2
         self.set_size_request(width, height)
 
         self._toolbar.update_filters('/', what_filter, filter_type)

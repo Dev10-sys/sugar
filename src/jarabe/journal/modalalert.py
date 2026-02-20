@@ -31,8 +31,8 @@ class ModalAlert(Gtk.Window):
 
         self.set_border_width(style.LINE_WIDTH)
         offset = style.GRID_CELL_SIZE
-        width = Gdk.Screen.width() - offset * 2
-        height = Gdk.Screen.height() - offset * 2
+        width = (Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024) - offset * 2
+        height = (Gdk.Display.get_default().get_primary_monitor().get_geometry().height if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 768) - offset * 2
         self.set_size_request(width, height)
         self.set_position(Gtk.WindowPosition.CENTER_ALWAYS)
         self.set_decorated(False)
@@ -40,7 +40,7 @@ class ModalAlert(Gtk.Window):
         self.set_modal(True)
 
         self._main_view = Gtk.EventBox()
-        self._vbox = Gtk.VBox()
+        self._vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self._vbox.set_spacing(style.DEFAULT_SPACING)
         self._vbox.set_border_width(style.GRID_CELL_SIZE * 2)
         self._main_view.modify_bg(Gtk.StateType.NORMAL,

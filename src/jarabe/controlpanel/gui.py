@@ -61,8 +61,8 @@ class ControlPanel(Gtk.Window):
         self._section_toolbar = None
         self._main_toolbar = None
 
-        self._vbox = Gtk.VBox()
-        self._hbox = Gtk.HBox()
+        self._vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self._hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         self._vbox.pack_start(self._hbox, True, True, 0)
         self._hbox.show()
 
@@ -130,11 +130,11 @@ class ControlPanel(Gtk.Window):
         self._main_view.get_child().grab_focus()
 
     def _calculate_max_columns(self):
-        self._max_columns = int(0.285 * (float(Gdk.Screen.width()) /
+        self._max_columns = int(0.285 * (float((Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024)) /
                                          style.GRID_CELL_SIZE - 3))
         offset = style.GRID_CELL_SIZE
-        width = Gdk.Screen.width() - offset * 2
-        height = Gdk.Screen.height() - offset * 2
+        width = (Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024) - offset * 2
+        height = (Gdk.Display.get_default().get_primary_monitor().get_geometry().height if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 768) - offset * 2
         self.set_size_request(width, height)
         if hasattr(self, '_table'):
             for child in self._table.get_children():
@@ -526,7 +526,7 @@ class _SectionIcon(Gtk.EventBox):
 
         Gtk.EventBox.__init__(self, **kwargs)
 
-        self._vbox = Gtk.VBox()
+        self._vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self._icon = Icon(icon_name=self._icon_name,
                           pixel_size=self._pixel_size,
                           xo_color=self._xo_color)

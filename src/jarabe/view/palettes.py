@@ -238,7 +238,7 @@ class JournalPalette(BasePalette):
         box.append_item(separator)
         separator.show()
 
-        inner_box = Gtk.VBox()
+        inner_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         inner_box.set_spacing(style.DEFAULT_PADDING)
         box.append_item(inner_box, vertical_padding=0)
         inner_box.show()
@@ -297,7 +297,7 @@ class VolumePalette(Palette):
         self.content_box.append_item(separator)
         separator.show()
 
-        free_space_box = Gtk.VBox()
+        free_space_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         free_space_box.set_spacing(style.DEFAULT_PADDING)
         self.content_box.append_item(free_space_box, vertical_padding=0)
         free_space_box.show()

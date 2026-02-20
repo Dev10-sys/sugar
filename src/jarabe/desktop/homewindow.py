@@ -233,8 +233,8 @@ class HomeWindow(Gtk.Window):
            new_level != ShellModel.ZOOM_ACTIVITY:
             self._hide_alert()
             children = self._box.get_children()
-            if len(children) >= 2:
-                self._box.remove(children[1])
+            for child in children[1:]:
+                self._box.remove(child)
             self._box.pack_start(self._transition_box, True, True, 0)
             self._transition_box.show()
 
@@ -265,8 +265,8 @@ class HomeWindow(Gtk.Window):
 
         self._hide_alert()
         children = self._box.get_children()
-        if len(children) >= 2:
-            self._box.remove(children[1])
+        for child in children[1:]:
+            self._box.remove(child)
 
         if level == ShellModel.ZOOM_HOME:
             self._box.pack_start(self._home_box, True, True, 0)

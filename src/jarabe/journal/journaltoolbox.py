@@ -888,7 +888,7 @@ class MultiSelectEntriesInfoWidget(Gtk.ToolItem):
     def __init__(self):
         Gtk.ToolItem.__init__(self)
 
-        self._box = Gtk.VBox()
+        self._box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self._selected_entries = 0
         self._total = 0
 
@@ -1022,8 +1022,8 @@ def set_palette_list(palette_list):
     menuitem_width = req2.width
     menuitem_height = req2.height
 
-    palette_width = Gdk.Screen.width() - style.GRID_CELL_SIZE
-    palette_height = Gdk.Screen.height() - style.GRID_CELL_SIZE * 3
+    palette_width = (Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024) - style.GRID_CELL_SIZE
+    palette_height = (Gdk.Display.get_default().get_primary_monitor().get_geometry().height if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 768) - style.GRID_CELL_SIZE * 3
 
     nx = min(_MAXIMUM_PALETTE_COLUMNS, int(palette_width / menuitem_width))
     ny = min(int(palette_height / menuitem_height), len(palette_list) + 1)

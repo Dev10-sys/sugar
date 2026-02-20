@@ -52,7 +52,7 @@ class GestureHandler(object):
             self._gesture_grabber.remove(controller)
 
         self._track_gesture_for_area(SugarGestures.SwipeDirectionFlags.DOWN,
-                                     0, 0, Gdk.Screen.width(),
+                                     0, 0, (Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024),
                                      style.GRID_CELL_SIZE)
 
     def _track_gesture_for_area(self, directions, x, y, width, height):

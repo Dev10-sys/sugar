@@ -203,7 +203,7 @@ class AgePicker(Gtk.Grid):
         gender_index = GENDERS.index(self._gender)
         age_index = age_to_index(self._age)
 
-        width = Gdk.Screen.width()
+        width = (Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024)
 
         num_ages = len(self._group_labels.AGES)
         for i in range(num_ages):
@@ -236,7 +236,7 @@ class AgePicker(Gtk.Grid):
         Gdk.Screen.get_default().connect('size-changed', self._configure_cb)
 
     def _configure_cb(self, event=None):
-        width = Gdk.Screen.width()
+        width = (Gdk.Display.get_default().get_primary_monitor().get_geometry().width if Gdk.Display.get_default() and Gdk.Display.get_default().get_primary_monitor() else 1024)
         self._configure(width)
 
     def _configure(self, width):
