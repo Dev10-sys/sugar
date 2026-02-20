@@ -43,6 +43,8 @@ from jarabe.journal import journalwindow
 class Separator(Gtk.Box):
 
     def __init__(self, orientation):
+        Gtk.Box.__init__(
+            self, background_color=style.COLOR_PANEL_GREY.get_gdk_color())
         Gtk.Box.__init__(self, orientation=orientation)
         self.set_size_request(-1, style.GRID_CELL_SIZE)
 
@@ -50,6 +52,9 @@ class Separator(Gtk.Box):
 class BuddyList(Gtk.Box):
 
     def __init__(self, buddies):
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
+        
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         Gtk.Box.__init__(self,
                          orientation=Gtk.Orientation.HORIZONTAL,
                          spacing=style.DEFAULT_SPACING)
