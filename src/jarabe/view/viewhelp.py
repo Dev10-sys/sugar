@@ -129,7 +129,14 @@ def setup_view_help(activity):
     if shell.get_model().has_modal():
         return
 
-    viewhelp = ViewHelp(activity, activity.get_window())
+    parent = activity.get_window()
+    if parent is not None and hasattr(parent, 'get_window') and \
+            parent.get_window() is not None:
+        safe_parent = parent
+    else:
+        safe_parent = None
+
+    viewhelp = ViewHelp(activity, safe_parent)
     activity.push_shell_window(viewhelp)
     viewhelp.connect('hide', activity.pop_shell_window)
     viewhelp.show()
@@ -217,8 +224,10 @@ class ViewHelp(Gtk.Window):
         self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
         window = self.get_window()
         window.set_accept_focus(True)
-        if self._parent_window is not None:
-            window.set_transient_for(self._parent_window)
+        parent = self._parent_window
+        if parent is not None and hasattr(parent, 'get_window') and \
+                parent.get_window() is not None:
+            window.set_transient_for(parent)
         shell.get_model().push_modal()
 
     def __hide_cb(self, widget):

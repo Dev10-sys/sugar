@@ -126,7 +126,12 @@ def setup_view_source(activity):
         except Exception:
             logging.exception('Exception occurred in HandleViewSource():')
 
-    parent_window = activity.get_window()
+    parent = activity.get_window()
+    if parent is not None and hasattr(parent, 'get_window') and \
+            parent.get_window() is not None:
+        parent_window = parent
+    else:
+        parent_window = None
 
     bundle_path = activity.get_bundle_path()
     bundle_id = activity.get_bundle_id()
@@ -288,8 +293,10 @@ class ViewSource(Gtk.Window):
         window = self.get_window()
         window.set_accept_focus(True)
 
-        if self._parent_window is not None:
-            window.set_transient_for(self._parent_window)
+        parent = self._parent_window
+        if parent is not None and hasattr(parent, 'get_window') and \
+                parent.get_window() is not None:
+            window.set_transient_for(parent)
 
     def __stop_clicked_cb(self, widget):
         self.destroy()

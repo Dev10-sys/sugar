@@ -180,7 +180,12 @@ class KeyHandler(object):
 
         self._frame.hide()
 
-        panel = ControlPanel(activity.get_window())
+        parent = activity.get_window()
+        if parent is not None and hasattr(parent, 'get_window') and \
+                parent.get_window() is not None:
+            panel = ControlPanel(parent)
+        else:
+            panel = ControlPanel()
         activity.push_shell_window(panel)
         panel.connect('hide', activity.pop_shell_window)
         panel.show()

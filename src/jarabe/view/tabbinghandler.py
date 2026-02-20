@@ -106,8 +106,11 @@ class TabbingHandler(object):
     def _activate_current(self, event_time):
         home_model = shell.get_model()
         activity = home_model.get_tabbing_activity()
-        if activity and activity.get_window():
-            activity.get_window().activate(event_time)
+        if activity:
+            parent = activity.get_window()
+            if parent is not None and hasattr(parent, 'get_window') and \
+                    parent.get_window() is not None:
+                parent.activate(event_time)
 
     def next_activity(self, event_time):
         if not self._tabbing:
@@ -158,7 +161,10 @@ class TabbingHandler(object):
     def _activate_next_activity(self, event_time):
         next_activity = shell.get_model().get_next_activity()
         if next_activity:
-            next_activity.get_window().activate(event_time)
+            parent = next_activity.get_window()
+            if parent is not None and hasattr(parent, 'get_window') and \
+                    parent.get_window() is not None:
+                parent.activate(event_time)
 
     def stop(self, event_time):
         self._keyboard.ungrab(event_time)

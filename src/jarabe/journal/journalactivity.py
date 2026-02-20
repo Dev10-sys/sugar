@@ -140,7 +140,14 @@ class JournalActivityDBusService(dbus.service.Object):
                          out_signature='s')
     def ChooseObject(self, what_filter=''):
         chooser_id = uuid.uuid4().hex
-        chooser = ObjectChooser(None, what_filter)
+        parent = None
+        active = shell.get_model().get_active_activity()
+        if active is not None:
+            candidate = active.get_window()
+            if candidate is not None and hasattr(candidate, 'get_window') and \
+                    candidate.get_window() is not None:
+                parent = candidate
+        chooser = ObjectChooser(parent, what_filter)
         chooser.connect('response', self._chooser_response_cb, chooser_id)
         chooser.show()
 
@@ -151,7 +158,14 @@ class JournalActivityDBusService(dbus.service.Object):
     def ChooseObjectWithFilter(self, what_filter='',
                                filter_type=None, show_preview=False):
         chooser_id = uuid.uuid4().hex
-        chooser = ObjectChooser(None, what_filter, filter_type, show_preview)
+        parent = None
+        active = shell.get_model().get_active_activity()
+        if active is not None:
+            candidate = active.get_window()
+            if candidate is not None and hasattr(candidate, 'get_window') and \
+                    candidate.get_window() is not None:
+                parent = candidate
+        chooser = ObjectChooser(parent, what_filter, filter_type, show_preview)
         chooser.connect('response', self._chooser_response_cb, chooser_id)
         chooser.show()
 

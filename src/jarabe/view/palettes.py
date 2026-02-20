@@ -140,15 +140,20 @@ class CurrentActivityPalette(BasePalette):
         self.menu_box.show()
 
     def __resume_activate_cb(self, menu_item):
-        self._home_activity.get_window().activate(Gtk.get_current_event_time())
+        parent = self._home_activity.get_window()
+        if parent is not None and hasattr(parent, 'get_window') and \
+                parent.get_window() is not None:
+            parent.activate(Gtk.get_current_event_time())
         self.emit('done')
 
     def __view_source__cb(self, menu_item):
         setup_view_source(self._home_activity)
         shell_model = shell.get_model()
         if self._home_activity is not shell_model.get_active_activity():
-            self._home_activity.get_window().activate(
-                Gtk.get_current_event_time())
+            parent = self._home_activity.get_window()
+            if parent is not None and hasattr(parent, 'get_window') and \
+                    parent.get_window() is not None:
+                parent.activate(Gtk.get_current_event_time())
         self.emit('done')
 
     def __view_help__cb(self, menu_item):
@@ -250,7 +255,10 @@ class JournalPalette(BasePalette):
         self.connect('popup', self.__popup_cb)
 
     def __open_activate_cb(self, menu_item):
-        self._home_activity.get_window().activate(Gtk.get_current_event_time())
+        parent = self._home_activity.get_window()
+        if parent is not None and hasattr(parent, 'get_window') and \
+                parent.get_window() is not None:
+            parent.activate(Gtk.get_current_event_time())
 
     def __popup_cb(self, palette):
         stat = os.statvfs(env.get_profile_path())

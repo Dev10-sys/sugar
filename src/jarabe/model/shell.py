@@ -396,8 +396,7 @@ class ShellModel(GObject.GObject):
                                         self._activity_registered_cb)
         self._activity_registry.connect('activity-unregistered',
                                         self._activity_unregistered_cb)
-        self._active_window_monitor = GLib.timeout_add(200,
-                                                       self._poll_active_window)
+        self._active_window_monitor = None
 
     def get_launcher(self, activity_id):
         return self._launchers.get(str(activity_id))
@@ -436,7 +435,7 @@ class ShellModel(GObject.GObject):
         self.zoom_level_changed.send(self, old_level=old_level,
                                      new_level=new_level)
 
-        if new_level is self.ZOOM_ACTIVITY:
+        if new_level is self.ZOOM_ACTIVITY and self._active_activity is not None:
             # activate the window, in case it was iconified
             # (e.g. during sugar launch, the Journal starts in this state)
             window = self._active_activity.get_window()
@@ -523,7 +522,18 @@ class ShellModel(GObject.GObject):
     def index(self, obj):
         return self._activities.index(obj)
 
+    def _ensure_active_window_monitor(self):
+        if self._active_window_monitor is None:
+            self._active_window_monitor = GLib.timeout_add(
+                200, self._poll_active_window)
+
+    def _stop_active_window_monitor(self):
+        if self._active_window_monitor is not None:
+            GLib.source_remove(self._active_window_monitor)
+            self._active_window_monitor = None
+
     def _activity_registered_cb(self, registry, activity_id, window):
+        self._ensure_active_window_monitor()
         home_activity = self.get_activity_by_id(activity_id)
         if home_activity is None:
             return
@@ -555,9 +565,15 @@ class ShellModel(GObject.GObject):
                            str(activity_id))
 
     def _activity_window_destroy_cb(self, window, activity_id):
-        self._activity_registry.unregister(activity_id)
+        if activity_id in self._activity_registry.list_running():
+            self._activity_registry.unregister(activity_id)
 
     def _poll_active_window(self):
+        if not self._activities:
+            self._active_activity = None
+            self._active_window_monitor = None
+            return False
+
         app = Gtk.Application.get_default()
         if app is None:
             return True
@@ -573,7 +589,8 @@ class ShellModel(GObject.GObject):
     def _set_active_activity_from_window(self, window):
         for activity in self._activities:
             if activity.get_window() is window:
-                self._set_active_activity(activity)
+                if self._active_activity is not activity:
+                    self._set_active_activity(activity)
                 return
 
     def get_name_from_bundle_id(self, bundle_id):
@@ -599,6 +616,7 @@ class ShellModel(GObject.GObject):
 
     def _add_activity(self, home_activity):
         self._activities.append(home_activity)
+        self._ensure_active_window_monitor()
         self.emit('activity-added', home_activity)
 
     def _remove_activity(self, home_activity):
@@ -613,6 +631,8 @@ class ShellModel(GObject.GObject):
 
         self.emit('activity-removed', home_activity)
         self._activities.remove(home_activity)
+        if not self._activities:
+            self._stop_active_window_monitor()
 
     def notify_launch(self, activity_id, service_name):
         registry = get_bundle_registry()

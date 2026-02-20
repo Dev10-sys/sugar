@@ -112,7 +112,9 @@ class ObjectChooser(Gtk.Window):
         self._toolbar.update_filters('/', what_filter, filter_type)
 
     def __realize_cb(self, chooser, parent):
-        self.get_window().set_transient_for(parent)
+        if parent is not None and hasattr(parent, 'get_window') and \
+                parent.get_window() is not None:
+            self.get_window().set_transient_for(parent)
         # TODO: Should we disconnect the signal here?
 
     def __parent_destroy_cb(self, parent):

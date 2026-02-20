@@ -68,7 +68,10 @@ class ActivityAPI(API):
         self._client.send_result(request, [color_string.split(",")])
 
     def close(self, request):
-        self._activity.get_window().close(GLib.get_current_time())
+        window = self._activity.get_window()
+        if window is not None and hasattr(window, 'get_window') and \
+                window.get_window() is not None:
+            window.close(GLib.get_current_time())
 
         self._client.send_result(request, [])
 

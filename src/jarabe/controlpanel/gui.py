@@ -92,8 +92,10 @@ class ControlPanel(Gtk.Window):
         self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
         window = self.get_window()
         window.set_accept_focus(True)
-        if self._parent_window is not None:
-            window.set_transient_for(self._parent_window)
+        parent = self._parent_window
+        if parent is not None and hasattr(parent, 'get_window') and \
+                parent.get_window() is not None:
+            window.set_transient_for(parent)
 
         # the modal windows counter is updated to disable hot keys - SL#4601
         shell.get_model().push_modal()

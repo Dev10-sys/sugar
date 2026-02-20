@@ -283,8 +283,11 @@ def launch(bundle, activity_id=None, object_id=None, uri=None, color=None,
     shell_model = shell.get_model()
     activity = shell_model.get_activity_by_id(activity_id)
     if activity is not None:
-        logging.debug('re-launch %r', activity.get_window())
-        activity.get_window().activate(Gtk.get_current_event_time())
+        parent = activity.get_window()
+        logging.debug('re-launch %r', parent)
+        if parent is not None and hasattr(parent, 'get_window') and \
+                parent.get_window() is not None:
+            parent.activate(Gtk.get_current_event_time())
         return
 
     if not shell_model.can_launch_activity():
