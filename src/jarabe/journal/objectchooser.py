@@ -106,8 +106,9 @@ class ObjectChooser(Gtk.Window):
             vbox.pack_start(self._icon_view, True, True, 0)
             self._icon_view.show()
 
-        width = Gdk.Screen.width() - style.GRID_CELL_SIZE * 2
-        height = Gdk.Screen.height() - style.GRID_CELL_SIZE * 2
+        screen = Gdk.Screen.get_default()
+        width = screen.get_width() - style.GRID_CELL_SIZE * 2
+        height = screen.get_height() - style.GRID_CELL_SIZE * 2
         self.set_size_request(width, height)
 
         self._toolbar.update_filters('/', what_filter, filter_type)

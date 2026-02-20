@@ -36,8 +36,8 @@ def setup():
     global _instance
 
     display = Gdk.Display.get_default()
-    device_manager = display.get_device_manager()
-    devices = device_manager.list_devices(Gdk.DeviceType.SLAVE)
+    seat = display.get_default_seat()
+    devices = seat.get_slaves(Gdk.SeatCapabilities.TOUCH)
     for device in devices:
         if device.get_source() == Gdk.InputSource.TOUCHSCREEN:
             logging.debug('Cursor Tracker: found touchscreen, '

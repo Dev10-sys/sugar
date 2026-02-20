@@ -92,9 +92,10 @@ class ActivityChooser(Gtk.Window):
         self._vbox.pack_start(self._title_box, False, True, 0)
         self._title_box.show()
 
+        screen = Gdk.Screen.get_default()
         self.set_size_request(
-            (Gdk.Screen.height() - style.GRID_CELL_SIZE * 3) * 3 / 4,
-            (Gdk.Screen.height() - style.GRID_CELL_SIZE * 2) * 2 / 3)
+            (screen.get_height() - style.GRID_CELL_SIZE * 3) * 3 / 4,
+            (screen.get_height() - style.GRID_CELL_SIZE * 2) * 2 / 3)
         self.connect('key-press-event', self.__key_press_event_cb)
         self.connect('realize', self.__realize_cb)
 

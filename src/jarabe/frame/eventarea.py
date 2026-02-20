@@ -69,8 +69,9 @@ class EventArea(GObject.GObject):
         self._edge_delay = min(settings.get_int('edge-delay'), _MAX_DELAY)
         self._corner_delay = min(settings.get_int('corner-delay'), _MAX_DELAY)
         ts = min(settings.get_int('trigger-size'), style.GRID_CELL_SIZE)
-        sw = Gdk.Screen.width()
-        sh = Gdk.Screen.height()
+        screen = Gdk.Screen.get_default()
+        sw = screen.get_width()
+        sh = screen.get_height()
 
         if self._edge_delay == _MAX_DELAY:
             self._hide(_EDGES)

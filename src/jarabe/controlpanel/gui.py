@@ -111,7 +111,9 @@ class ControlPanel(Gtk.Window):
 
     def busy(self):
         if self._busy_count == 0:
-            self._old_cursor = self.get_window().get_cursor()
+            gdk_window = self.get_window()
+            if gdk_window is not None:
+                self._old_cursor = gdk_window.get_cursor()
             self._set_cursor(Gdk.Cursor.new(Gdk.CursorType.WATCH))
         self._busy_count += 1
 
@@ -121,7 +123,9 @@ class ControlPanel(Gtk.Window):
             self._set_cursor(self._old_cursor)
 
     def _set_cursor(self, cursor):
-        self.get_window().set_cursor(cursor)
+        gdk_window = self.get_window()
+        if gdk_window is not None:
+            gdk_window.set_cursor(cursor)
         Gdk.flush()
 
     def add_alert(self, alert):
@@ -136,11 +140,12 @@ class ControlPanel(Gtk.Window):
         self._main_view.get_child().grab_focus()
 
     def _calculate_max_columns(self):
-        self._max_columns = int(0.285 * (float(Gdk.Screen.width()) /
+        screen = Gdk.Screen.get_default()
+        self._max_columns = int(0.285 * (float(screen.get_width()) /
                                          style.GRID_CELL_SIZE - 3))
         offset = style.GRID_CELL_SIZE
-        width = Gdk.Screen.width() - offset * 2
-        height = Gdk.Screen.height() - offset * 2
+        width = screen.get_width() - offset * 2
+        height = screen.get_height() - offset * 2
         self.set_size_request(width, height)
         if hasattr(self, '_table'):
             for child in self._table.get_children():

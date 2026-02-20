@@ -21,11 +21,12 @@ from sugar3.graphics.palette import WidgetInvoker
 
 def _get_screen_area():
     frame_thickness = style.GRID_CELL_SIZE
+    screen = Gdk.Screen.get_default()
 
     screen_area = Gdk.Rectangle()
     screen_area.x = screen_area.y = frame_thickness
-    screen_area.width = Gdk.Screen.width() - frame_thickness
-    screen_area.height = Gdk.Screen.height() - frame_thickness
+    screen_area.width = screen.get_width() - frame_thickness
+    screen_area.height = screen.get_height() - frame_thickness
 
     return screen_area
 

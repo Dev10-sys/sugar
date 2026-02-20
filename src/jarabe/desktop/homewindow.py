@@ -295,7 +295,9 @@ class HomeWindow(Gtk.Window):
 
     def busy(self):
         if self._busy_count == 0:
-            self._old_cursor = self.get_window().get_cursor()
+            gdk_window = self.get_window()
+            if gdk_window is not None:
+                self._old_cursor = gdk_window.get_cursor()
             self._set_cursor(Gdk.Cursor.new(Gdk.CursorType.WATCH))
         self._busy_count += 1
 
@@ -305,7 +307,9 @@ class HomeWindow(Gtk.Window):
             self._set_cursor(self._old_cursor)
 
     def _set_cursor(self, cursor):
-        self.get_window().set_cursor(cursor)
+        gdk_window = self.get_window()
+        if gdk_window is not None:
+            gdk_window.set_cursor(cursor)
         Gdk.flush()
 
 

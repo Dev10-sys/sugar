@@ -36,13 +36,9 @@ class TabbingHandler(object):
         self._mouse = None
 
         display = Gdk.Display.get_default()
-        device_manager = display.get_device_manager()
-        devices = device_manager.list_devices(Gdk.DeviceType.MASTER)
-        for device in devices:
-            if device.get_source() == Gdk.InputSource.KEYBOARD:
-                self._keyboard = device
-            if device.get_source() == Gdk.InputSource.MOUSE:
-                self._mouse = device
+        seat = display.get_default_seat()
+        self._keyboard = seat.get_keyboard()
+        self._mouse = seat.get_pointer()
 
     def _start_tabbing(self, event_time):
         if not self._tabbing:

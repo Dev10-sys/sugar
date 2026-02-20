@@ -369,7 +369,8 @@ class RingLayout(ViewLayout):
 
     def _calculate_maximum_radius(self, icon_size):
         """ Return the maximum radius including encroachment. """
-        r = (Gdk.Screen.height() - style.GRID_CELL_SIZE) / 2 - \
+        screen = Gdk.Screen.get_default()
+        r = (screen.get_height() - style.GRID_CELL_SIZE) / 2 - \
             style.DEFAULT_SPACING
         return r - (icon_size * _MAXIMUM_RADIUS_PADDING_FACTOR)
 
