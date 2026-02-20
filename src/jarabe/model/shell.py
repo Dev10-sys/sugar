@@ -22,7 +22,6 @@ from gi.repository import Wnck
 from gi.repository import GObject
 from gi.repository import Gtk
 from gi.repository import Gdk
-from gi.repository import GdkX11
 from gi.repository import GLib
 import dbus
 
@@ -30,7 +29,8 @@ from sugar3 import dispatch
 from sugar3 import profile
 from gi.repository import SugarExt
 
-from jarabe.model.bundleregistry import get_registry
+from jarabe.model.bundleregistry import get_registry as get_bundle_registry
+from jarabe.model.activityregistry import get_registry as get_activity_registry
 
 _SERVICE_NAME = 'org.laptop.Activity'
 _SERVICE_PATH = '/org/laptop/Activity'
@@ -424,6 +424,7 @@ class ShellModel(GObject.GObject):
             'maximum-number-of-open-activities')
 
         self._launch_timers = {}
+        self._activity_registry = get_activity_registry()
 
     def get_launcher(self, activity_id):
         return self._launchers.get(str(activity_id))
@@ -576,18 +577,13 @@ class ShellModel(GObject.GObject):
 
             service_name = SugarExt.wm_get_bundle_id(xid)
             if service_name:
-                registry = get_registry()
+                registry = get_bundle_registry()
                 activity_info = registry.get_bundle(service_name)
             else:
                 activity_info = None
 
             if activity_id:
                 home_activity = self.get_activity_by_id(activity_id)
-
-                display = Gdk.Display.get_default()
-                gdk_window = GdkX11.X11Window.foreign_new_for_display(display,
-                                                                      xid)
-                gdk_window.set_decorations(0)
 
                 window.maximize()
 
@@ -615,6 +611,8 @@ class ShellModel(GObject.GObject):
                                                                 home_activity))
 
             if is_main_window(window, home_activity):
+                if activity_id:
+                    self._activity_registry.register(window, activity_id)
                 self.emit('launch-completed', home_activity)
                 startup_time = time.time() - home_activity.get_launch_time()
                 logging.debug('%s launched in %f seconds.',
@@ -631,6 +629,9 @@ class ShellModel(GObject.GObject):
             if activity is not None:
                 activity.remove_window_by_xid(xid)
                 if activity.get_window() is None:
+                    activity_id = activity.get_activity_id()
+                    if activity_id:
+                        self._activity_registry.unregister(activity_id)
                     logging.debug('last window gone - remove activity %s',
                                   activity)
                     activity.close_window()
@@ -705,7 +706,7 @@ class ShellModel(GObject.GObject):
         self._activities.remove(home_activity)
 
     def notify_launch(self, activity_id, service_name):
-        registry = get_registry()
+        registry = get_bundle_registry()
         activity_info = registry.get_bundle(service_name)
         if not activity_info:
             raise ValueError("Activity service name '%s'"
