@@ -165,9 +165,9 @@ class ControlPanel(Gtk.Window):
     def _setup_main(self):
         self._main_toolbar = MainToolbar()
 
-        self._table = Gtk.Table()
-        self._table.set_col_spacings(style.GRID_CELL_SIZE)
-        self._table.set_row_spacings(style.GRID_CELL_SIZE)
+        self._table = Gtk.Grid()
+        self._table.set_column_spacing(style.GRID_CELL_SIZE)
+        self._table.set_row_spacing(style.GRID_CELL_SIZE)
         self._table.set_border_width(style.GRID_CELL_SIZE)
 
         self._scrolledwindow = Gtk.ScrolledWindow()
@@ -210,13 +210,13 @@ class ControlPanel(Gtk.Window):
             sectionicon.show()
 
             if option == 'aboutme':
-                self._table.attach(sectionicon, 0, 1, 0, 1)
+                self._table.attach(sectionicon, 0, 0, 1, 1)
             elif option == 'aboutcomputer':
-                self._table.attach(sectionicon, 1, 2, 0, 1)
+                self._table.attach(sectionicon, 1, 0, 1, 1)
             else:
                 self._table.attach(sectionicon,
-                                   column, column + 1,
-                                   row, row + 1)
+                                   column, row,
+                                   1, 1)
                 column += 1
                 if column == self._max_columns:
                     column = 0
