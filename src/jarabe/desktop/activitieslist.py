@@ -496,8 +496,8 @@ class ClearMessageBox(Gtk.EventBox):
         box.pack_start(label, expand=True, fill=False, padding=0)
         label.show()
 
-        button_box = Gtk.HButtonBox()
-        button_box.set_layout(Gtk.ButtonBoxStyle.CENTER)
+        button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        button_box.set_halign(Gtk.Align.CENTER)
         box.pack_start(button_box, False, True, 0)
         button_box.show()
 

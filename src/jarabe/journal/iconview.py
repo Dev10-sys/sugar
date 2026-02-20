@@ -248,6 +248,8 @@ class IconView(Gtk.Bin):
         alignment = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         alignment.set_halign(Gtk.Align.CENTER)
         alignment.set_valign(Gtk.Align.CENTER)
+        alignment.set_hexpand(True)
+        alignment.set_vexpand(True)
         self.remove(self.get_child())
         self.add(alignment)
         alignment.show()
@@ -294,8 +296,8 @@ class IconView(Gtk.Bin):
         box.pack_start(label, expand=True, fill=False, padding=0)
 
         if show_clear_query:
-            button_box = Gtk.HButtonBox()
-            button_box.set_layout(Gtk.ButtonBoxStyle.CENTER)
+            button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            button_box.set_halign(Gtk.Align.CENTER)
             box.pack_start(button_box, False, True, 0)
             button_box.show()
 

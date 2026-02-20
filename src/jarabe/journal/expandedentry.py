@@ -45,6 +45,8 @@ class Separator(Gtk.Box):
     def __init__(self, orientation):
         Gtk.Box.__init__(
             self, background_color=style.COLOR_PANEL_GREY.get_gdk_color())
+        Gtk.Box.__init__(self, orientation=orientation)
+        self.set_size_request(-1, style.GRID_CELL_SIZE)
 
 
 class BuddyList(Gtk.Box):
@@ -53,14 +55,17 @@ class BuddyList(Gtk.Box):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
         
         hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        Gtk.Box.__init__(self,
+                         orientation=Gtk.Orientation.HORIZONTAL,
+                         spacing=style.DEFAULT_SPACING)
+
         for buddy in buddies:
             nick_, color = buddy
             icon = CanvasIcon(icon_name='computer-xo',
                               xo_color=XoColor(color),
                               pixel_size=style.STANDARD_ICON_SIZE)
             icon.set_palette(BuddyPalette(buddy))
-            hbox.pack_start(icon, True, True, 0)
-        self.add(hbox)
+            self.pack_start(icon, True, True, 0)
 
 
 class TextView(Gtk.TextView):
