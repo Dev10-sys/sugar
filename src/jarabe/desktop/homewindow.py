@@ -33,6 +33,7 @@ from jarabe.desktop.transitionbox import TransitionBox
 from jarabe.desktop.viewtoolbar import ViewToolbar
 from jarabe.model.shell import ShellModel
 from jarabe.model import shell
+from jarabe.util.backend import is_x11_backend
 
 
 _HOME_PAGE = 0
@@ -221,9 +222,7 @@ class HomeWindow(Gtk.Window):
         timestamp = event.get_time()
         x11_window = self.get_window()
         if not timestamp:
-            display = Gdk.Display.get_default()
-            is_x11 = display.__class__.__name__.startswith('GdkX11')
-            if is_x11:
+            if is_x11_backend():
                 timestamp = GdkX11.x11_get_server_time(x11_window)
             else:
                 timestamp = Gtk.get_current_event_time()

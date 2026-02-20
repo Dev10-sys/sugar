@@ -49,6 +49,7 @@ from sugar3.bundle.activitybundle import get_bundle_instance
 from sugar3.datastore import datastore
 from sugar3.env import get_user_activities_path
 from sugar3 import mime
+from jarabe.util.backend import is_x11_backend
 
 from jarabe.view import customizebundle
 
@@ -294,8 +295,7 @@ class ViewSource(Gtk.Window):
         window.set_accept_focus(True)
 
         display = Gdk.Display.get_default()
-        is_x11 = display.__class__.__name__.startswith('GdkX11')
-        if is_x11:
+        if is_x11_backend():
             parent = GdkX11.X11Window.foreign_new_for_display(
                 display, self._parent_window_xid)
             window.set_transient_for(parent)

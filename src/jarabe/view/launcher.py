@@ -24,6 +24,7 @@ from gi.repository import SugarExt
 from sugar3.graphics import style
 
 from jarabe.model import shell
+from jarabe.util.backend import is_x11_backend
 from jarabe.view.pulsingicon import PulsingIcon
 
 
@@ -106,9 +107,7 @@ class LaunchWindow(Gtk.Window):
         self.resize(screen.get_width(), screen.get_height())
 
     def __realize_cb(self, widget):
-        display = Gdk.Display.get_default()
-        is_x11 = display.__class__.__name__.startswith('GdkX11')
-        if is_x11:
+        if is_x11_backend():
             SugarExt.wm_set_activity_id(widget.get_window().get_xid(),
                                         str(self._activity_id))
 

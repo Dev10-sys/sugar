@@ -30,6 +30,7 @@ from jarabe.journal.listmodel import ListModel
 from jarabe.journal.journaltoolbox import MainToolbox
 from jarabe.journal.volumestoolbar import VolumesToolbar
 from jarabe.model import bundleregistry
+from jarabe.util.backend import is_x11_backend
 
 from jarabe.journal.iconview import IconView
 
@@ -118,9 +119,7 @@ class ObjectChooser(Gtk.Window):
         # TODO: Should we disconnect the signal here?
 
     def __window_closed_cb(self, screen, window, parent):
-        display = Gdk.Display.get_default()
-        is_x11 = display.__class__.__name__.startswith('GdkX11')
-        if is_x11 and window.get_xid() == parent.get_xid():
+        if is_x11_backend() and window.get_xid() == parent.get_xid():
             self.destroy()
 
     def __entry_activated_cb(self, list_view, uid):

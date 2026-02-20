@@ -32,6 +32,7 @@ from jarabe.controlpanel.toolbar import MainToolbar
 from jarabe.controlpanel.toolbar import SectionToolbar
 from jarabe import config
 from jarabe.model import shell
+from jarabe.util.backend import is_x11_backend
 
 _logger = logging.getLogger('ControlPanel')
 
@@ -99,8 +100,7 @@ class ControlPanel(Gtk.Window):
         window.set_accept_focus(True)
         if self.parent_window_xid > 0:
             display = Gdk.Display.get_default()
-            is_x11 = display.__class__.__name__.startswith('GdkX11')
-            if is_x11:
+            if is_x11_backend():
                 parent = GdkX11.X11Window.foreign_new_for_display(
                     display, self.parent_window_xid)
                 window.set_transient_for(parent)
