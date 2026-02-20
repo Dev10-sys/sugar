@@ -19,8 +19,8 @@ import logging
 import gi
 gi.require_version('Xkl', '1.0')
 from gi.repository import Gio
-from gi.repository import GdkX11
 from gi.repository import Xkl
+from jarabe.util.backend import get_gdkx11
 from jarabe.util.backend import is_x11_backend
 
 
@@ -30,6 +30,10 @@ def setup():
 
     try:
         if not is_x11_backend():
+            return
+
+        GdkX11 = get_gdkx11()
+        if GdkX11 is None:
             return
 
         display = GdkX11.x11_get_default_xdisplay()
