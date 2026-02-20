@@ -25,7 +25,6 @@ logging.debug('STARTUP: Starting the shell')
 
 import os
 import sys
-import subprocess
 import shutil
 
 # Disable overlay scrolling before GTK is loaded
@@ -148,7 +147,7 @@ def _begin_desktop_startup():
     session_manager = get_session_manager()
     session_manager.start()
 
-    # open homewindow before window_manager to let desktop appear fast
+    # Open HomeWindow early so desktop appears fast.
     home_window = homewindow.get_instance()
     home_window.show()
 
