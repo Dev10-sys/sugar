@@ -19,6 +19,7 @@ import logging
 import gi
 gi.require_version('Xkl', '1.0')
 from gi.repository import Gio
+from gi.repository import Gdk
 from gi.repository import GdkX11
 from gi.repository import Xkl
 
@@ -28,12 +29,16 @@ def setup():
     have_config = False
 
     try:
+        gdk_display = Gdk.Display.get_default()
+        is_x11 = gdk_display.__class__.__name__.startswith('GdkX11')
+        if not is_x11:
+            return
+
         display = GdkX11.x11_get_default_xdisplay()
-        if display is not None:
-            engine = Xkl.Engine.get_instance(display)
-        else:
+        if display is None:
             logging.debug('setup_keyboard_cb: Could not get default display.')
             return
+        engine = Xkl.Engine.get_instance(display)
 
         configrec = Xkl.ConfigRec()
         configrec.get_from_server(engine)

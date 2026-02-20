@@ -294,9 +294,11 @@ class ViewSource(Gtk.Window):
         window.set_accept_focus(True)
 
         display = Gdk.Display.get_default()
-        parent = GdkX11.X11Window.foreign_new_for_display(
-            display, self._parent_window_xid)
-        window.set_transient_for(parent)
+        is_x11 = display.__class__.__name__.startswith('GdkX11')
+        if is_x11:
+            parent = GdkX11.X11Window.foreign_new_for_display(
+                display, self._parent_window_xid)
+            window.set_transient_for(parent)
 
     def __stop_clicked_cb(self, widget):
         self.destroy()

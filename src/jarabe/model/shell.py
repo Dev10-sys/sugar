@@ -585,9 +585,11 @@ class ShellModel(GObject.GObject):
                 home_activity = self.get_activity_by_id(activity_id)
 
                 display = Gdk.Display.get_default()
-                gdk_window = GdkX11.X11Window.foreign_new_for_display(display,
-                                                                      xid)
-                gdk_window.set_decorations(0)
+                is_x11 = display.__class__.__name__.startswith('GdkX11')
+                if is_x11:
+                    gdk_window = GdkX11.X11Window.foreign_new_for_display(
+                        display, xid)
+                    gdk_window.set_decorations(0)
 
                 window.maximize()
 

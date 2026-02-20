@@ -229,9 +229,11 @@ class ViewHelp(Gtk.Window):
         window.set_accept_focus(True)
         if self.parent_window_xid > 0:
             display = Gdk.Display.get_default()
-            parent = GdkX11.X11Window.foreign_new_for_display(
-                display, self.parent_window_xid)
-            window.set_transient_for(parent)
+            is_x11 = display.__class__.__name__.startswith('GdkX11')
+            if is_x11:
+                parent = GdkX11.X11Window.foreign_new_for_display(
+                    display, self.parent_window_xid)
+                window.set_transient_for(parent)
         shell.get_model().push_modal()
 
     def __hide_cb(self, widget):

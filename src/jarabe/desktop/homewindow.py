@@ -221,7 +221,12 @@ class HomeWindow(Gtk.Window):
         timestamp = event.get_time()
         x11_window = self.get_window()
         if not timestamp:
-            timestamp = GdkX11.x11_get_server_time(x11_window)
+            display = Gdk.Display.get_default()
+            is_x11 = display.__class__.__name__.startswith('GdkX11')
+            if is_x11:
+                timestamp = GdkX11.x11_get_server_time(x11_window)
+            else:
+                timestamp = Gtk.get_current_event_time()
         x11_window.focus(timestamp)
 
     def __zoom_level_changed_cb(self, **kwargs):

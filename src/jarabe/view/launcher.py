@@ -106,8 +106,11 @@ class LaunchWindow(Gtk.Window):
         self.resize(screen.get_width(), screen.get_height())
 
     def __realize_cb(self, widget):
-        SugarExt.wm_set_activity_id(widget.get_window().get_xid(),
-                                    str(self._activity_id))
+        display = Gdk.Display.get_default()
+        is_x11 = display.__class__.__name__.startswith('GdkX11')
+        if is_x11:
+            SugarExt.wm_set_activity_id(widget.get_window().get_xid(),
+                                        str(self._activity_id))
 
     def __size_changed_cb(self, screen):
         self._update_size()

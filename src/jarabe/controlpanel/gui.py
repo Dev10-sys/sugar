@@ -99,9 +99,11 @@ class ControlPanel(Gtk.Window):
         window.set_accept_focus(True)
         if self.parent_window_xid > 0:
             display = Gdk.Display.get_default()
-            parent = GdkX11.X11Window.foreign_new_for_display(
-                display, self.parent_window_xid)
-            window.set_transient_for(parent)
+            is_x11 = display.__class__.__name__.startswith('GdkX11')
+            if is_x11:
+                parent = GdkX11.X11Window.foreign_new_for_display(
+                    display, self.parent_window_xid)
+                window.set_transient_for(parent)
 
         # the modal windows counter is updated to disable hot keys - SL#4601
         shell.get_model().push_modal()
