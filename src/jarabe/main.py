@@ -50,7 +50,6 @@ DBusGMainLoop(set_as_default=True)
 import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('Gst', '1.0')
-gi.require_version('Wnck', '3.0')
 gi.require_version('SugarExt', '1.0')
 gi.require_version('GdkX11', '3.0')
 
@@ -205,6 +204,8 @@ def _start_window_manager():
     _restart_window_manager()
 
     if is_x11_backend():
+        import gi
+        gi.require_version('Wnck', '3.0')
         from gi.repository import Wnck
         screen = Wnck.Screen.get_default()
         screen.connect('window-manager-changed', __window_manager_changed_cb)
