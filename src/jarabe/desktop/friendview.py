@@ -23,10 +23,11 @@ from jarabe.view.buddyicon import BuddyIcon
 from jarabe.model import bundleregistry
 
 
-class FriendView(Gtk.VBox):
+class FriendView(Gtk.Box):
 
     def __init__(self, buddy, **kwargs):
-        Gtk.VBox.__init__(self)
+        # GTK4: Gtk.VBox → Gtk.Box(VERTICAL)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
 
         # round icon sizes to an even number so that it can be accurately
         # centered in a larger bounding box also of even dimensions
@@ -35,10 +36,12 @@ class FriendView(Gtk.VBox):
         self._buddy = buddy
         self._buddy_icon = BuddyIcon(buddy)
         self._buddy_icon.props.pixel_size = size
-        self.add(self._buddy_icon)
-        self._buddy_icon.show()
+        # GTK4: container.add → append
+        self.append(self._buddy_icon)
+        self._buddy_icon.set_visible(True)
 
         self._activity_icon = CanvasIcon(pixel_size=size)
+        self._activity_icon_added = False
         self._update_activity()
 
         self._buddy.connect('notify::current-activity',
@@ -54,9 +57,10 @@ class FriendView(Gtk.VBox):
         return None
 
     def _remove_activity_icon(self):
-        if self._activity_icon.get_visible():
-            self._activity_icon.hide()
+        if self._activity_icon_added:
+            self._activity_icon.set_visible(False)
             self.remove(self._activity_icon)
+            self._activity_icon_added = False
 
     def __buddy_notify_current_activity_cb(self, buddy, pspec):
         self._update_activity()
@@ -67,15 +71,14 @@ class FriendView(Gtk.VBox):
             self._remove_activity_icon()
             return
 
-        # FIXME: use some sort of "unknown activity" icon rather
-        # than hiding the icon?
         name = self._get_new_icon_name(self._buddy.current_activity)
         if name:
             self._activity_icon.props.file_name = name
             self._activity_icon.props.xo_color = self._buddy.props.color
-            if not self._activity_icon.get_visible():
-                self.add(self._activity_icon)
-                self._activity_icon.show()
+            if not self._activity_icon_added:
+                self.append(self._activity_icon)
+                self._activity_icon_added = True
+                self._activity_icon.set_visible(True)
         else:
             self._remove_activity_icon()
 
@@ -83,5 +86,4 @@ class FriendView(Gtk.VBox):
         self._update_activity()
 
     def __buddy_notify_color_cb(self, buddy, pspec):
-        # TODO: shouldn't this change self._buddy_icon instead?
         self._activity_icon.props.xo_color = buddy.props.color

@@ -68,7 +68,7 @@ class ActivityAPI(API):
         self._client.send_result(request, [color_string.split(",")])
 
     def close(self, request):
-        self._activity.get_window().close(GLib.get_current_time())
+        self._activity.close_window()
 
         self._client.send_result(request, [])
 

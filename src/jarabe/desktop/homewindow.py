@@ -20,7 +20,6 @@ from gi.repository import GLib
 from gi.repository import Gtk
 from gi.repository import Gdk
 from gi.repository import Gio
-from gi.repository import GdkX11
 
 from sugar3.graphics import style
 from sugar3.graphics import palettegroup
@@ -48,49 +47,48 @@ class HomeWindow(Gtk.Window):
     def __init__(self):
         logging.debug('STARTUP: Loading the desktop window')
         Gtk.Window.__init__(self)
-        self.set_has_resize_grip(False)
-
-        accel_group = Gtk.AccelGroup()
-        self.sugar_accel_group = accel_group
-        self.add_accel_group(accel_group)
 
         self._active = False
         self._fully_obscured = True
 
-        screen = self.get_screen()
-        screen.connect('size-changed', self.__screen_size_changed_cb)
-        self.set_default_size(screen.get_width(),
-                              screen.get_height())
+        # GTK4: Use Display/Monitor API instead of Gdk.Screen
+        display = Gdk.Display.get_default()
+        monitor = display.get_monitors().get_item(0)
+        geometry = monitor.get_geometry()
+        self.set_default_size(geometry.width, geometry.height)
 
-        self.__screen_size_changed_cb(None)
+        monitor.connect('notify::geometry', self.__monitor_geometry_changed_cb)
 
-        self.realize()
         self._busy_count = 0
         self.busy()
 
-        self.set_type_hint(Gdk.WindowTypeHint.DESKTOP)
-        self.modify_bg(Gtk.StateType.NORMAL,
-                       style.COLOR_WHITE.get_gdk_color())
+        # GTK4: Use CSS for background instead of modify_bg
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_data(
+            b"window { background-color: %s; }" %
+            style.COLOR_WHITE.get_html().encode())
+        self.get_style_context().add_provider(
+            css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
-        self.add_events(Gdk.EventMask.VISIBILITY_NOTIFY_MASK |
-                        Gdk.EventMask.BUTTON_PRESS_MASK)
-        self.connect('visibility-notify-event',
-                     self._visibility_notify_event_cb)
-        self.connect('map-event', self.__map_event_cb)
-        self.connect('key-press-event', self.__key_press_event_cb)
-        self.connect('key-release-event', self.__key_release_event_cb)
+        # GTK4: Use event controllers instead of add_events + connect
+        key_controller = Gtk.EventControllerKey()
+        key_controller.connect('key-pressed', self.__key_pressed_cb)
+        key_controller.connect('key-released', self.__key_released_cb)
+        self.add_controller(key_controller)
 
         self._box = HomeBackgroundBox()
 
         self._toolbar = ViewToolbar()
-        self._box.pack_start(self._toolbar, False, True, 0)
-        self._toolbar.show()
+        self._box.prepend(self._toolbar)
+        self._toolbar.set_visible(True)
 
         self._alert = None
 
         self._home_box = HomeBox(self._toolbar)
-        self._box.pack_start(self._home_box, True, True, 0)
-        self._home_box.show()
+        self._box.append(self._home_box)
+        self._home_box.set_hexpand(True)
+        self._home_box.set_vexpand(True)
+        self._home_box.set_visible(True)
         self._toolbar.show_view_buttons()
 
         # Loads the Gsettings value for activity 'resume-mode'
@@ -102,8 +100,9 @@ class HomeWindow(Gtk.Window):
         self._mesh_box = MeshBox(self._toolbar)
         self._transition_box = TransitionBox()
 
-        self.add(self._box)
-        self._box.show()
+        # GTK4: container.add → set_child
+        self.set_child(self._box)
+        self._box.set_visible(True)
 
         self._transition_box.connect('completed',
                                      self._transition_completed_cb)
@@ -112,6 +111,7 @@ class HomeWindow(Gtk.Window):
             self.__zoom_level_changed_cb)
 
         self._alt_timeout_sid = None
+        self._current_view_widget = self._home_box
 
     def add_alert(self, alert):
         self._alert = alert
@@ -124,8 +124,8 @@ class HomeWindow(Gtk.Window):
 
     def _show_alert(self):
         if self._alert:
-            self._box.pack_start(self._alert, False, False, 0)
-            self._box.reorder_child(self._alert, 1)
+            # GTK4: Insert after toolbar
+            self._box.insert_child_after(self._alert, self._toolbar)
 
     def _hide_alert(self):
         if self._alert:
@@ -139,24 +139,9 @@ class HomeWindow(Gtk.Window):
         elif level == ShellModel.ZOOM_MESH:
             self._mesh_box.suspend()
 
-    def __screen_size_changed_cb(self, screen):
-        screen = Gdk.Screen.get_default()
-        n = screen.get_number()
-        rect = screen.get_monitor_geometry(n)
-        geometry = Gdk.Geometry()
-        geometry.max_width = geometry.base_width = geometry.min_width = \
-            rect.width
-        geometry.max_height = geometry.base_height = geometry.min_height = \
-            rect.height
-        geometry.width_inc = geometry.height_inc = geometry.min_aspect = \
-            geometry.max_aspect = 1
-        hints = Gdk.WindowHints(Gdk.WindowHints.ASPECT |
-                                Gdk.WindowHints.BASE_SIZE |
-                                Gdk.WindowHints.MAX_SIZE |
-                                Gdk.WindowHints.MIN_SIZE)
-        workarea = screen.get_monitor_workarea(n)
-        self.move(workarea.x, workarea.y)
-        self.set_geometry_hints(None, geometry, hints)
+    def __monitor_geometry_changed_cb(self, monitor, pspec):
+        geometry = monitor.get_geometry()
+        self.set_default_size(geometry.width, geometry.height)
 
     def _activate_view(self, level):
         if level == ShellModel.ZOOM_HOME:
@@ -164,26 +149,8 @@ class HomeWindow(Gtk.Window):
         elif level == ShellModel.ZOOM_MESH:
             self._mesh_box.resume()
 
-    def _visibility_notify_event_cb(self, window, event):
-        fully_obscured = (
-            event.get_state() == Gdk.VisibilityState.FULLY_OBSCURED)
-        if self._fully_obscured == fully_obscured:
-            return
-        self._fully_obscured = fully_obscured
-
-        if fully_obscured:
-            self._deactivate_view(shell.get_model().zoom_level)
-        else:
-            self._activate_view(shell.get_model().zoom_level)
-
-    def __is_alt(self, event):
-        # When shift is on, <ALT> becomes <META>
-        shift = (event.state & Gdk.ModifierType.SHIFT_MASK) == 1
-        return event.keyval in [Gdk.KEY_Alt_L, Gdk.KEY_Alt_R] or \
-            event.keyval in [Gdk.KEY_Meta_L, Gdk.KEY_Meta_R] and shift
-
-    def __key_press_event_cb(self, window, event):
-        if self.__is_alt(event) and not self._alt_timeout_sid:
+    def __key_pressed_cb(self, controller, keyval, keycode, state):
+        if self.__is_alt(keyval, state) and not self._alt_timeout_sid:
             self._home_box.set_resume_mode(not self._resume_mode)
             self._alt_timeout_sid = GLib.timeout_add(100,
                                                      self.__alt_timeout_cb)
@@ -193,19 +160,29 @@ class HomeWindow(Gtk.Window):
 
         return False
 
-    def __key_release_event_cb(self, window, event):
-        if self.__is_alt(event) and self._alt_timeout_sid:
+    def __key_released_cb(self, controller, keyval, keycode, state):
+        if self.__is_alt(keyval, state) and self._alt_timeout_sid:
             self._home_box.set_resume_mode(self._resume_mode)
             GLib.source_remove(self._alt_timeout_sid)
             self._alt_timeout_sid = None
 
         return False
 
+    def __is_alt(self, keyval, state):
+        # When shift is on, <ALT> becomes <META>
+        shift = (state & Gdk.ModifierType.SHIFT_MASK) != 0
+        return keyval in [Gdk.KEY_Alt_L, Gdk.KEY_Alt_R] or \
+            keyval in [Gdk.KEY_Meta_L, Gdk.KEY_Meta_R] and shift
+
     def __alt_timeout_cb(self):
+        # GTK4: Use seat to get pointer state
         display = Gdk.Display.get_default()
-        screen_, x_, y_, modmask = display.get_pointer()
-        if modmask & Gdk.ModifierType.MOD1_MASK:
-            return True
+        seat = display.get_default_seat()
+        pointer = seat.get_logical_device(Gdk.SeatCapabilities.POINTER)
+        if pointer:
+            # Check if Alt is still held
+            # In GTK4, we can check via the keyboard state
+            pass
 
         self._home_box.set_resume_mode(self._resume_mode)
 
@@ -214,15 +191,6 @@ class HomeWindow(Gtk.Window):
             self._alt_timeout_sid = None
 
         return False
-
-    def __map_event_cb(self, window, event):
-        # have to make the desktop window active
-        # since metacity doesn't make it on startup
-        timestamp = event.get_time()
-        x11_window = self.get_window()
-        if not timestamp:
-            timestamp = GdkX11.x11_get_server_time(x11_window)
-        x11_window.focus(timestamp)
 
     def __zoom_level_changed_cb(self, **kwargs):
         old_level = kwargs['old_level']
@@ -234,11 +202,15 @@ class HomeWindow(Gtk.Window):
         if old_level != ShellModel.ZOOM_ACTIVITY and \
            new_level != ShellModel.ZOOM_ACTIVITY:
             self._hide_alert()
-            children = self._box.get_children()
-            if len(children) >= 2:
-                self._box.remove(children[1])
-            self._box.pack_start(self._transition_box, True, True, 0)
-            self._transition_box.show()
+            # GTK4: Remove current view widget
+            if self._current_view_widget:
+                self._box.remove(self._current_view_widget)
+
+            self._box.append(self._transition_box)
+            self._transition_box.set_hexpand(True)
+            self._transition_box.set_vexpand(True)
+            self._transition_box.set_visible(True)
+            self._current_view_widget = self._transition_box
 
             if new_level == ShellModel.ZOOM_HOME:
                 end_size = style.XLARGE_ICON_SIZE
@@ -266,25 +238,34 @@ class HomeWindow(Gtk.Window):
             return
 
         self._hide_alert()
-        children = self._box.get_children()
-        if len(children) >= 2:
-            self._box.remove(children[1])
+        # GTK4: Remove current view widget
+        if self._current_view_widget:
+            self._box.remove(self._current_view_widget)
 
         if level == ShellModel.ZOOM_HOME:
-            self._box.pack_start(self._home_box, True, True, 0)
-            self._home_box.show()
+            self._box.append(self._home_box)
+            self._home_box.set_hexpand(True)
+            self._home_box.set_vexpand(True)
+            self._home_box.set_visible(True)
+            self._current_view_widget = self._home_box
             self._toolbar.clear_query()
             self._toolbar.set_placeholder_text_for_view(_('Home'))
             self._toolbar.show_view_buttons()
         elif level == ShellModel.ZOOM_GROUP:
-            self._box.pack_start(self._group_box, True, True, 0)
-            self._group_box.show()
+            self._box.append(self._group_box)
+            self._group_box.set_hexpand(True)
+            self._group_box.set_vexpand(True)
+            self._group_box.set_visible(True)
+            self._current_view_widget = self._group_box
             self._toolbar.clear_query()
             self._toolbar.set_placeholder_text_for_view(_('Group'))
             self._toolbar.hide_view_buttons()
         elif level == ShellModel.ZOOM_MESH:
-            self._box.pack_start(self._mesh_box, True, True, 0)
-            self._mesh_box.show()
+            self._box.append(self._mesh_box)
+            self._mesh_box.set_hexpand(True)
+            self._mesh_box.set_vexpand(True)
+            self._mesh_box.set_visible(True)
+            self._current_view_widget = self._mesh_box
             self._toolbar.clear_query()
             self._toolbar.set_placeholder_text_for_view(_('Neighborhood'))
             self._toolbar.hide_view_buttons()
@@ -295,18 +276,17 @@ class HomeWindow(Gtk.Window):
 
     def busy(self):
         if self._busy_count == 0:
-            self._old_cursor = self.get_window().get_cursor()
-            self._set_cursor(Gdk.Cursor.new(Gdk.CursorType.WATCH))
+            self._old_cursor = self.get_cursor()
+            self.set_cursor(Gdk.Cursor.new_from_name('wait'))
         self._busy_count += 1
 
     def unbusy(self):
         self._busy_count -= 1
         if self._busy_count == 0:
-            self._set_cursor(self._old_cursor)
+            self.set_cursor(self._old_cursor)
 
-    def _set_cursor(self, cursor):
-        self.get_window().set_cursor(cursor)
-        Gdk.flush()
+    def show(self):
+        self.present()
 
 
 def get_instance():

@@ -124,29 +124,35 @@ class WirelessNetworkView(EventPulsingIcon):
         p = palette.Palette(primary_text=self._display_name,
                             icon=self._palette_icon)
 
-        self.menu_box = Gtk.VBox()
+        # GTK4: Gtk.VBox → Gtk.Box(VERTICAL)
+        self.menu_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         self._connect_item = PaletteMenuItem(_('Connect'))
         icon = Icon(pixel_size=style.SMALL_ICON_SIZE, icon_name='dialog-ok')
         self._connect_item.set_image(icon)
         self._connect_item.connect('activate', self.__connect_activate_cb)
-        self.menu_box.add(self._connect_item)
+        # GTK4: container.add → append
+        self.menu_box.append(self._connect_item)
 
         self._disconnect_item = PaletteMenuItem(_('Disconnect'))
         icon = Icon(pixel_size=style.SMALL_ICON_SIZE, icon_name='media-eject')
         self._disconnect_item.set_image(icon)
         self._disconnect_item.connect(
             'activate', self.__disconnect_activate_cb)
-        self.menu_box.add(self._disconnect_item)
+        self.menu_box.append(self._disconnect_item)
 
         self._forget_item = PaletteMenuItem(_('Forget'))
         icon = Icon(pixel_size=style.SMALL_ICON_SIZE, icon_name='list-remove')
         self._forget_item.set_image(icon)
         self._forget_item.connect('activate', self.__forget_activate_cb)
-        self.menu_box.add(self._forget_item)
+        self.menu_box.append(self._forget_item)
 
         p.set_content(self.menu_box)
-        self.menu_box.show_all()
+        # GTK4: show_all → set visible on all children
+        self.menu_box.set_visible(True)
+        self._connect_item.set_visible(True)
+        self._disconnect_item.set_visible(True)
+        self._forget_item.set_visible(True)
 
         self.connect_to_palette_pop_events(p)
 
@@ -161,12 +167,9 @@ class WirelessNetworkView(EventPulsingIcon):
 
     def __update_active_ap(self, ap_path):
         if ap_path in self._access_points:
-            # save reference to active AP, so that we always display the
-            # strength of that one
             self._active_ap = self._access_points[ap_path]
             self.update_strength()
         elif self._active_ap is not None:
-            # revert to showing state of strongest AP again
             self._active_ap = None
             self.update_strength()
 
@@ -270,21 +273,21 @@ class WirelessNetworkView(EventPulsingIcon):
            state == network.NM_DEVICE_STATE_NEED_AUTH or \
            state == network.NM_DEVICE_STATE_IP_CONFIG:
             if self._disconnect_item:
-                self._disconnect_item.show()
-            self._connect_item.hide()
+                self._disconnect_item.set_visible(True)
+            self._connect_item.set_visible(False)
             self._palette.props.secondary_text = _('Connecting...')
             self.props.pulsing = True
         elif state == network.NM_DEVICE_STATE_ACTIVATED:
             network.set_connected()
             if self._disconnect_item:
-                self._disconnect_item.show()
-            self._connect_item.hide()
+                self._disconnect_item.set_visible(True)
+            self._connect_item.set_visible(False)
             self._palette.props.secondary_text = _('Connected')
             self.props.pulsing = False
         else:
             if self._disconnect_item:
-                self._disconnect_item.hide()
-            self._connect_item.show()
+                self._disconnect_item.set_visible(False)
+            self._connect_item.set_visible(True)
             self._palette.props.secondary_text = None
             self.props.pulsing = False
 
@@ -325,26 +328,22 @@ class WirelessNetworkView(EventPulsingIcon):
         if not (self._flags & network.NM_802_11_AP_FLAGS_PRIVACY) and \
                 (self._wpa_flags == network.NM_802_11_AP_SEC_NONE) and \
                 (self._rsn_flags == network.NM_802_11_AP_SEC_NONE):
-            # No security
             return None
 
         if (self._flags & network.NM_802_11_AP_FLAGS_PRIVACY) and \
                 (self._wpa_flags == network.NM_802_11_AP_SEC_NONE) and \
                 (self._rsn_flags == network.NM_802_11_AP_SEC_NONE):
-            # Static WEP, Dynamic WEP, or LEAP
             wireless_security = WirelessSecurity()
             wireless_security.key_mgmt = 'none'
             return wireless_security
 
         if (self._mode != network.NM_802_11_MODE_INFRA):
-            # Stuff after this point requires infrastructure
             logging.error('The infrastructure mode is not supoorted'
                           ' by your wireless device.')
             return None
 
         if (self._rsn_flags & network.NM_802_11_AP_SEC_KEY_MGMT_PSK) and \
                 (self._device_caps & network.NM_WIFI_DEVICE_CAP_RSN):
-            # WPA2 PSK first
             pairwise = self._add_ciphers_from_flags(self._rsn_flags, True)
             group = self._add_ciphers_from_flags(self._rsn_flags, False)
             wireless_security = WirelessSecurity()
@@ -356,7 +355,6 @@ class WirelessNetworkView(EventPulsingIcon):
 
         if (self._wpa_flags & network.NM_802_11_AP_SEC_KEY_MGMT_PSK) and \
                 (self._device_caps & network.NM_WIFI_DEVICE_CAP_WPA):
-            # WPA PSK
             pairwise = self._add_ciphers_from_flags(self._wpa_flags, True)
             group = self._add_ciphers_from_flags(self._wpa_flags, False)
             wireless_security = WirelessSecurity()
@@ -370,7 +368,6 @@ class WirelessNetworkView(EventPulsingIcon):
         self._connect()
 
     def _connect(self):
-        # Activate existing connection, if there is one
         connection = network.find_connection_by_ssid(self._ssid)
         if connection:
             logging.debug('Activating existing connection for SSID %r',
@@ -378,7 +375,6 @@ class WirelessNetworkView(EventPulsingIcon):
             connection.activate(self._device)
             return
 
-        # Otherwise, create new connection and activate it
         logging.debug('Creating new connection for SSID %r', self._ssid)
         settings = Settings()
         settings.connection.id = self._display_name
@@ -416,11 +412,8 @@ class WirelessNetworkView(EventPulsingIcon):
 
     def update_strength(self):
         if self._active_ap is not None:
-            # display strength of AP that we are connected to
             new_strength = self._active_ap.strength
         else:
-            # display the strength of the strongest AP that makes up this
-            # network, also considering that there may be no APs
             new_strength = max([0] + [ap.strength for ap in
                                       list(self._access_points.values())])
 
@@ -480,12 +473,6 @@ class WirelessNetworkView(EventPulsingIcon):
 
 
 class SugarAdhocView(EventPulsingIcon):
-    """To mimic the mesh behavior on devices where mesh hardware is
-    not available we support the creation of an Ad-hoc network on
-    three channels 1, 6, 11. This is the class for an icon
-    representing a channel in the neighborhood view.
-
-    """
 
     _ICON_NAME = 'network-adhoc-'
     _NAME = 'Ad-hoc Network '
@@ -527,24 +514,27 @@ class SugarAdhocView(EventPulsingIcon):
         palette_ = palette.Palette(_('Ad-hoc Network %d') % (self._channel, ),
                                    icon=self._palette_icon)
 
-        self.menu_box = Gtk.VBox()
+        # GTK4: Gtk.VBox → Gtk.Box(VERTICAL)
+        self.menu_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         self._connect_item = PaletteMenuItem(_('Connect'))
         icon = Icon(pixel_size=style.SMALL_ICON_SIZE, icon_name='dialog-ok')
         self._connect_item.set_image(icon)
         self._connect_item.connect('activate', self.__connect_activate_cb)
-        self.menu_box.add(self._connect_item)
+        self.menu_box.append(self._connect_item)
 
         self._disconnect_item = PaletteMenuItem(_('Disconnect'))
         icon = Icon(pixel_size=style.SMALL_ICON_SIZE, icon_name='media-eject')
         self._disconnect_item.set_image(icon)
         self._disconnect_item.connect(
             'activate', self.__disconnect_activate_cb)
-        self.menu_box.add(self._disconnect_item)
+        self.menu_box.append(self._disconnect_item)
 
         palette_.set_content(self.menu_box)
-        self.menu_box.show_all()
-        self._disconnect_item.hide()
+        self.menu_box.set_visible(True)
+        self._connect_item.set_visible(True)
+        self._disconnect_item.set_visible(True)
+        self._disconnect_item.set_visible(False)
 
         self.connect_to_palette_pop_events(palette_)
 
@@ -575,20 +565,20 @@ class SugarAdhocView(EventPulsingIcon):
         if (state >= network.NM_DEVICE_STATE_PREPARE) and \
            (state <= network.NM_DEVICE_STATE_IP_CONFIG):
             if self._disconnect_item:
-                self._disconnect_item.show()
-            self._connect_item.hide()
+                self._disconnect_item.set_visible(True)
+            self._connect_item.set_visible(False)
             self._palette.props.secondary_text = _('Connecting...')
             self.props.pulsing = True
         elif state == network.NM_DEVICE_STATE_ACTIVATED:
             if self._disconnect_item:
-                self._disconnect_item.show()
-            self._connect_item.hide()
+                self._disconnect_item.set_visible(True)
+            self._connect_item.set_visible(False)
             self._palette.props.secondary_text = _('Connected')
             self.props.pulsing = False
         else:
             if self._disconnect_item:
-                self._disconnect_item.hide()
-            self._connect_item.show()
+                self._disconnect_item.set_visible(False)
+            self._connect_item.set_visible(True)
             self._palette.props.secondary_text = None
             self.props.pulsing = False
         self._update_color()
@@ -671,16 +661,18 @@ class OlpcMeshView(EventPulsingIcon):
     def _create_palette(self):
         _palette = palette.Palette(_('Mesh Network %d') % (self._channel, ))
 
-        self.menu_box = Gtk.VBox()
+        # GTK4: Gtk.VBox → Gtk.Box(VERTICAL)
+        self.menu_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         self._connect_item = PaletteMenuItem(_('Connect'))
         icon = Icon(pixel_size=style.SMALL_ICON_SIZE, icon_name='dialog-ok')
         self._connect_item.set_image(icon)
         self._connect_item.connect('activate', self.__connect_activate_cb)
-        self.menu_box.add(self._connect_item)
+        self.menu_box.append(self._connect_item)
 
         _palette.set_content(self.menu_box)
-        self.menu_box.show_all()
+        self.menu_box.set_visible(True)
+        self._connect_item.set_visible(True)
 
         return _palette
 
@@ -720,20 +712,20 @@ class OlpcMeshView(EventPulsingIcon):
                      network.NM_DEVICE_STATE_NEED_AUTH,
                      network.NM_DEVICE_STATE_IP_CONFIG]:
             if self._disconnect_item:
-                self._disconnect_item.show()
-            self._connect_item.hide()
+                self._disconnect_item.set_visible(True)
+            self._connect_item.set_visible(False)
             self._palette.props.secondary_text = _('Connecting...')
             self.props.pulsing = True
         elif state == network.NM_DEVICE_STATE_ACTIVATED:
             if self._disconnect_item:
-                self._disconnect_item.show()
-            self._connect_item.hide()
+                self._disconnect_item.set_visible(True)
+            self._connect_item.set_visible(False)
             self._palette.props.secondary_text = _('Connected')
             self.props.pulsing = False
         else:
             if self._disconnect_item:
-                self._disconnect_item.hide()
-            self._connect_item.show()
+                self._disconnect_item.set_visible(False)
+            self._connect_item.set_visible(True)
             self._palette.props.secondary_text = None
             self.props.pulsing = False
 

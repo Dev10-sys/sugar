@@ -61,7 +61,9 @@ class ClipboardObject(object):
         icons = Gio.content_type_get_icon(mime_type)
         icon_name = None
         if icons is not None:
-            icon_theme = Gtk.IconTheme.get_default()
+            from gi.repository import Gdk
+            display = Gdk.Display.get_default()
+            icon_theme = Gtk.IconTheme.get_for_display(display)
             for icon_name in icons.props.names:
                 icon_info = (
                     icon_theme.lookup_icon(icon_name,

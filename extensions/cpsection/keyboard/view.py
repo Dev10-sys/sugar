@@ -20,7 +20,6 @@ import os
 import locale
 
 from gi.repository import Gtk
-from gi.repository import GdkX11
 from gi.repository import GObject
 from gi.repository import GLib
 from gi.repository import Pango
@@ -63,7 +62,7 @@ def _build_ISO_639_dictionary():
         logging.error('%s not found' % (ISO_DATA_FILE))
 
 
-class LayoutCombo(Gtk.HBox):
+class LayoutCombo(Gtk.Box):
     """
     Custom GTK widget with two comboboxes side by side, one for layout, and
     the other for variants for the selected layout.
@@ -75,19 +74,22 @@ class LayoutCombo(Gtk.HBox):
     }
 
     def __init__(self, keyboard_manager, n):
-        GObject.GObject.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
         self._keyboard_manager = keyboard_manager
         self._index = n
 
-        self.set_border_width(style.DEFAULT_SPACING)
+        self.set_margin_start(style.DEFAULT_SPACING)
+        self.set_margin_end(style.DEFAULT_SPACING)
+        self.set_margin_top(style.DEFAULT_SPACING)
+        self.set_margin_bottom(style.DEFAULT_SPACING)
+
         self.set_spacing(style.DEFAULT_SPACING)
 
         label = Gtk.Label(label=' <b>%s</b> ' % str(n + 1))
         label.set_use_markup(True)
-        label.modify_fg(Gtk.StateType.NORMAL,
-                        style.COLOR_SELECTION_GREY.get_gdk_color())
-        label.set_alignment(0.5, 0.5)
-        self.pack_start(label, False, True, 0)
+        label.set_xalign(0.5)
+        label.set_yalign(0.5)
+        self.append(label)
 
         self._klang_store = Gtk.ListStore(GObject.TYPE_STRING,
                                           GObject.TYPE_STRING)
@@ -102,7 +104,9 @@ class LayoutCombo(Gtk.HBox):
         cell.props.ellipsize_set = True
         self._klang_combo.pack_start(cell, True)
         self._klang_combo.add_attribute(cell, 'text', 1)
-        self.pack_start(self._klang_combo, expand=True, fill=True, padding=0)
+        self.append(self._klang_combo)
+        self._klang_combo.set_hexpand(True)
+        self._klang_combo.set_visible(True)
 
         self._kvariant_store = None
         self._kvariant_combo = Gtk.ComboBox(model=None)
@@ -114,8 +118,9 @@ class LayoutCombo(Gtk.HBox):
         cell.props.ellipsize_set = True
         self._kvariant_combo.pack_start(cell, True)
         self._kvariant_combo.add_attribute(cell, 'text', 1)
-        self.pack_start(self._kvariant_combo, expand=True, fill=True,
-                        padding=0)
+        self.append(self._kvariant_combo)
+        self._kvariant_combo.set_hexpand(True)
+        self._kvariant_combo.set_visible(True)
 
         self._klang_combo.set_active(self._index)
 
@@ -196,26 +201,31 @@ class Keyboard(SectionView):
         self._group_switch_option = None
         self._selected_group_switch_option = None
 
-        self.set_border_width(style.DEFAULT_SPACING * 2)
+        self.set_margin_start(style.DEFAULT_SPACING * 2)
+        self.set_margin_end(style.DEFAULT_SPACING * 2)
+        self.set_margin_top(style.DEFAULT_SPACING * 2)
+        self.set_margin_bottom(style.DEFAULT_SPACING * 2)
         self.set_spacing(style.DEFAULT_SPACING)
 
-        self._layout_table = Gtk.Table(rows=4, columns=2, homogeneous=False)
+        self._layout_table = Gtk.Grid()
 
         _build_ISO_639_dictionary()
 
-        self._keyboard_manager = model.KeyboardManager(
-            GdkX11.x11_get_default_xdisplay())
+        # Pass None instead of X11 display
+        self._keyboard_manager = model.KeyboardManager(None)
 
         self._layout_combo_list = []
         self._layout_addremovebox_list = []
 
         scrollwindow = Gtk.ScrolledWindow()
         scrollwindow.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        self.pack_start(scrollwindow, True, True, 0)
-        scrollwindow.show()
+        self.append(scrollwindow)
+        scrollwindow.set_hexpand(True)
+        scrollwindow.set_vexpand(True)
+        scrollwindow.set_visible(True)
 
-        self._vbox = Gtk.VBox()
-        scrollwindow.add_with_viewport(self._vbox)
+        self._vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        scrollwindow.set_child(self._vbox)
 
         self.__kmodel_sid = None
         self.__layout_sid = None
@@ -225,21 +235,25 @@ class Keyboard(SectionView):
         self._setup_layouts()
         self._setup_group_switch_option()
 
-        self._vbox.show()
+        self._vbox.set_visible(True)
 
     def _setup_kmodel(self):
         """Adds the controls for changing the keyboard model"""
-        separator_kmodel = Gtk.HSeparator()
-        self._vbox.pack_start(separator_kmodel, False, True, 0)
-        separator_kmodel.show_all()
+        separator_kmodel = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        self._vbox.append(separator_kmodel)
+        separator_kmodel.set_visible(True)
 
         label_kmodel = Gtk.Label(label=_('Keyboard Model'))
-        label_kmodel.set_alignment(0, 0)
-        self._vbox.pack_start(label_kmodel, False, True, 0)
-        label_kmodel.show_all()
+        label_kmodel.set_xalign(0.0)
+        label_kmodel.set_yalign(0.0)
+        self._vbox.append(label_kmodel)
+        label_kmodel.set_visible(True)
 
-        box_kmodel = Gtk.VBox()
-        box_kmodel.set_border_width(style.DEFAULT_SPACING * 2)
+        box_kmodel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        box_kmodel.set_margin_start(style.DEFAULT_SPACING * 2)
+        box_kmodel.set_margin_end(style.DEFAULT_SPACING * 2)
+        box_kmodel.set_margin_top(style.DEFAULT_SPACING * 2)
+        box_kmodel.set_margin_bottom(style.DEFAULT_SPACING * 2)
         box_kmodel.set_spacing(style.DEFAULT_SPACING)
 
         kmodel_store = Gtk.ListStore(GObject.TYPE_STRING,
@@ -261,9 +275,9 @@ class Keyboard(SectionView):
                     kmodel_combo.set_active_iter(row.iter)
                     break
 
-        box_kmodel.pack_start(kmodel_combo, False, True, 0)
-        self._vbox.pack_start(box_kmodel, False, True, 0)
-        box_kmodel.show_all()
+        box_kmodel.append(kmodel_combo)
+        self._vbox.append(box_kmodel)
+        box_kmodel.set_visible(True)
 
         kmodel_combo.connect('changed', self.__kmodel_changed_cb)
 
@@ -290,17 +304,21 @@ class Keyboard(SectionView):
     def _setup_group_switch_option(self):
         """Adds the controls for changing the group switch option of keyboard
         """
-        separator_group_option = Gtk.HSeparator()
-        self._vbox.pack_start(separator_group_option, False, True, 0)
-        separator_group_option.show_all()
+        separator_group_option = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        self._vbox.append(separator_group_option)
+        separator_group_option.set_visible(True)
 
         label_group_option = Gtk.Label(label=_('Key(s) to change layout'))
-        label_group_option.set_alignment(0, 0)
-        self._vbox.pack_start(label_group_option, False, True, 0)
-        label_group_option.show_all()
+        label_group_option.set_xalign(0.0)
+        label_group_option.set_yalign(0.0)
+        self._vbox.append(label_group_option)
+        label_group_option.set_visible(True)
 
-        box_group_option = Gtk.VBox()
-        box_group_option.set_border_width(style.DEFAULT_SPACING * 2)
+        box_group_option = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        box_group_option.set_margin_start(style.DEFAULT_SPACING * 2)
+        box_group_option.set_margin_end(style.DEFAULT_SPACING * 2)
+        box_group_option.set_margin_top(style.DEFAULT_SPACING * 2)
+        box_group_option.set_margin_bottom(style.DEFAULT_SPACING * 2)
         box_group_option.set_spacing(style.DEFAULT_SPACING)
 
         group_option_store = Gtk.ListStore(GObject.TYPE_STRING,
@@ -329,9 +347,9 @@ class Keyboard(SectionView):
             if not found:
                 group_option_combo.set_active(0)
 
-        box_group_option.pack_start(group_option_combo, False, True, 0)
-        self._vbox.pack_start(box_group_option, False, True, 0)
-        box_group_option.show_all()
+        box_group_option.append(group_option_combo)
+        self._vbox.append(box_group_option)
+        box_group_option.set_visible(True)
 
         group_option_combo.connect('changed', self.__group_switch_changed_cb)
 
@@ -358,74 +376,75 @@ class Keyboard(SectionView):
 
     def _setup_layouts(self):
         """Adds the controls for changing the keyboard layouts"""
-        separator_klayout = Gtk.HSeparator()
-        self._vbox.pack_start(separator_klayout, False, True, 0)
-        separator_klayout.show_all()
+        separator_klayout = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        self._vbox.append(separator_klayout)
+        separator_klayout.set_visible(True)
 
         label_klayout = Gtk.Label(label=_('Keyboard Layout(s)'))
-        label_klayout.set_alignment(0, 0)
-        label_klayout.show_all()
-        self._vbox.pack_start(label_klayout, False, True, 0)
+        label_klayout.set_xalign(0.0)
+        label_klayout.set_yalign(0.0)
+        label_klayout.set_visible(True)
+        self._vbox.append(label_klayout)
 
         self._klayouts = self._keyboard_manager.get_current_layouts()
         for i in range(0, self._keyboard_manager.get_max_layouts()):
             add_remove_box = self.__create_add_remove_box()
             self._layout_addremovebox_list.append(add_remove_box)
-            self._layout_table.attach(add_remove_box, 1, 2, i, i + 1)
+            self._layout_table.attach(add_remove_box, 1, i, 1, 1)
 
             layout_combo = LayoutCombo(self._keyboard_manager, i)
             layout_combo.connect('selection-changed',
                                  self.__layout_combo_selection_changed_cb)
             self._layout_combo_list.append(layout_combo)
-            self._layout_table.attach(layout_combo, 0, 1, i, i + 1)
+            self._layout_table.attach(layout_combo, 0, i, 1, 1)
 
             if i < len(self._klayouts):
-                layout_combo.show_all()
+                layout_combo.set_visible(True)
                 layout_combo.select_layout(self._klayouts[i])
 
-        self._vbox.pack_start(self._layout_table, False, True, 0)
+        self._vbox.append(self._layout_table)
         self._layout_table.set_size_request(
-            self._vbox.get_size_request()[0], -1)
-        self._layout_table.show()
+            self._vbox.get_width() if self._vbox.get_width() > 0 else 200, -1)
+        self._layout_table.set_visible(True)
         self._update_klayouts()
 
     def __determine_add_remove_box_visibility(self):
         i = 1
         for box in self._layout_addremovebox_list:
             if not i == len(self._selected_klayouts):
-                box.props.visible = False
+                box.set_visible(False)
             else:
-                box.show_all()
+                box.set_visible(True)
+                # In GTK4 we use the stored buttons directly or get_first_child
+                add = box.get_first_child()
+                remove = add.get_next_sibling()
                 if i == 1:
                     # First row - no need for showing remove btn
-                    add, remove = box.get_children()
-                    remove.props.visible = False
+                    remove.set_visible(False)
                 if i == self._keyboard_manager.get_max_layouts():
                     # Last row - no need for showing add btn
-                    add, remove = box.get_children()
-                    add.props.visible = False
+                    add.set_visible(False)
             i += 1
 
     def __create_add_remove_box(self):
-        """Creates Gtk.Hbox with add/remove buttons"""
+        """Creates Gtk.Box with add/remove buttons"""
         add_icon = Icon(icon_name='list-add')
 
         add_button = Gtk.Button()
-        add_button.set_image(add_icon)
+        add_button.set_child(add_icon)
         add_button.connect('clicked',
                            self.__add_button_clicked_cb)
 
         remove_icon = Icon(icon_name='list-remove')
         remove_button = Gtk.Button()
-        remove_button.set_image(remove_icon)
+        remove_button.set_child(remove_icon)
         remove_button.connect('clicked',
                               self.__remove_button_clicked_cb)
 
-        add_remove_box = Gtk.HButtonBox()
-        add_remove_box.set_layout(Gtk.ButtonBoxStyle.START)
+        add_remove_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         add_remove_box.set_spacing(10)
-        add_remove_box.pack_start(add_button, True, True, 0)
-        add_remove_box.pack_start(remove_button, True, True, 0)
+        add_remove_box.append(add_button)
+        add_remove_box.append(remove_button)
 
         return add_remove_box
 
@@ -433,7 +452,7 @@ class Keyboard(SectionView):
         self._update_klayouts()
 
     def __add_button_clicked_cb(self, button):
-        self._layout_combo_list[len(self._selected_klayouts)].show_all()
+        self._layout_combo_list[len(self._selected_klayouts)].set_visible(True)
         self._update_klayouts()
 
     def __remove_button_clicked_cb(self, button):

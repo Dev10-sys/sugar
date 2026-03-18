@@ -69,7 +69,8 @@ def _get_icon_for_mime(mime_type):
 def get_mount_icon_name(mount, size):
     icon = mount.get_icon()
     if isinstance(icon, Gio.ThemedIcon):
-        icon_theme = Gtk.IconTheme.get_default()
+        display = Gdk.Display.get_default()
+        icon_theme = Gtk.IconTheme.get_for_display(display)
         for icon_name in icon.props.names:
             lookup = icon_theme.lookup_icon(icon_name, size, 0)
             if lookup is not None:
@@ -284,7 +285,7 @@ def launch(bundle, activity_id=None, object_id=None, uri=None, color=None,
     activity = shell_model.get_activity_by_id(activity_id)
     if activity is not None:
         logging.debug('re-launch %r', activity.get_window())
-        activity.get_window().activate(Gtk.get_current_event_time())
+        activity.get_window().activate(0)
         return
 
     if not shell_model.can_launch_activity():
@@ -378,9 +379,10 @@ def handle_bundle_installation(metadata, force_downgrade=False):
 
     registry = bundleregistry.get_registry()
 
-    window = journalwindow.get_journal_window().get_window()
-    window.set_cursor(Gdk.Cursor(Gdk.CursorType.WATCH))
-    Gdk.flush()
+    window = journalwindow.get_journal_window()
+    # GTK4: Gdk.Cursor() → Gdk.Cursor.new_from_name()
+    window.set_cursor(Gdk.Cursor.new_from_name('wait', None))
+    # GTK4: Gdk.flush() removed; cursor update happens automatically
 
     try:
         installed = registry.install(bundle, force_downgrade)
@@ -391,7 +393,7 @@ def handle_bundle_installation(metadata, force_downgrade=False):
         return None, False
     finally:
         window.set_cursor(None)
-        Gdk.flush()
+        # GTK4: Gdk.flush() removed
 
     # If we just installed a bundle, update the datastore accordingly.
     # We do not do this for JournalEntryBundles because the JEB code transforms

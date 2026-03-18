@@ -31,69 +31,53 @@ class TabbingHandler(object):
         self._tabbing = False
         self._modifier = modifier
         self._timeout = None
-        self._keyboard = None
-        self._mouse = None
+        self._seat = None
 
         display = Gdk.Display.get_default()
         if display is None:
             logging.debug('TabbingHandler: display not available')
         else:
-            device_manager = display.get_device_manager()
-            devices = device_manager.list_devices(Gdk.DeviceType.MASTER)
-            for device in devices:
-                if device.get_source() == Gdk.InputSource.KEYBOARD:
-                    self._keyboard = device
-                if device.get_source() == Gdk.InputSource.MOUSE:
-                    self._mouse = device
+            self._seat = display.get_default_seat()
 
     def _start_tabbing(self, event_time):
         if not self._tabbing:
             logging.debug('Grabing the input.')
 
-            screen = Gdk.Screen.get_default()
-            if screen is None or self._keyboard is None or self._mouse is None:
+            display = Gdk.Display.get_default()
+            if display is None or self._seat is None:
                 logging.debug('TabbingHandler: cannot start tabbing '
-                              '(no screen or devices)')
+                              '(no display or seat)')
                 return
 
-            window = screen.get_root_window()
+            surface = self._frame._top_panel.get_surface()
+            if surface is None:
+                logging.debug('TabbingHandler: no surface available')
+                return
 
-            keyboard_grab_result = self._keyboard.grab(
-                window,
-                Gdk.GrabOwnership.WINDOW,
+            grab_status = self._seat.grab(
+                surface,
+                Gdk.SeatCapabilities.KEYBOARD | Gdk.SeatCapabilities.POINTER,
                 False,
-                Gdk.EventMask.KEY_PRESS_MASK |
-                Gdk.EventMask.KEY_RELEASE_MASK,
                 None,
-                event_time)
-
-            mouse_grab_result = self._mouse.grab(
-                window,
-                Gdk.GrabOwnership.WINDOW,
-                False,
-                Gdk.EventMask.BUTTON_PRESS_MASK |
-                Gdk.EventMask.BUTTON_RELEASE_MASK,
                 None,
-                event_time)
+                None)
 
-            self._tabbing = (keyboard_grab_result == Gdk.GrabStatus.SUCCESS and
-                             mouse_grab_result == Gdk.GrabStatus.SUCCESS)
+            self._tabbing = (grab_status == Gdk.GrabStatus.SUCCESS)
 
-            # Now test that the modifier is still active to prevent race
-            # conditions. We also test if one of the grabs failed.
-            mask = window.get_device_position(self._mouse)[3]
-            if not self._tabbing or not (mask & self._modifier):
-                logging.debug('Releasing grabs again.')
-
-                # ungrab keyboard/pointer if the grab was successfull.
-                if keyboard_grab_result == Gdk.GrabStatus.SUCCESS:
-                    self._keyboard.ungrab(event_time)
-                if mouse_grab_result == Gdk.GrabStatus.SUCCESS:
-                    self._mouse.ungrab(event_time)
-
-                self._tabbing = False
+            if not self._tabbing:
+                logging.debug('Failed to grab seat.')
             else:
-                self._frame.show()
+                keyboard = self._seat.get_keyboard()
+                if keyboard:
+                    state = keyboard.get_modifier_state()
+                    if not (state & self._modifier):
+                        logging.debug('Releasing grabs again.')
+                        self._seat.ungrab()
+                        self._tabbing = False
+                    else:
+                        self._frame.show()
+                else:
+                    self._frame.show()
 
     def __timeout_cb(self, event_time):
         self._activate_current(event_time)
@@ -169,11 +153,8 @@ class TabbingHandler(object):
             next_activity.get_window().activate(event_time)
 
     def stop(self, event_time):
-        if self._keyboard is not None:
-            self._keyboard.ungrab(event_time)
-
-        if self._mouse is not None:
-            self._mouse.ungrab(event_time)
+        if self._seat is not None:
+            self._seat.ungrab()
 
         self._tabbing = False
         self._frame.hide()

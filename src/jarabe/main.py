@@ -48,17 +48,16 @@ DBusGMainLoop(set_as_default=True)
 
 # define the versions of used libraries that are required
 import gi
-gi.require_version('Gtk', '3.0')
+gi.require_version('Gtk', '4.0')
 gi.require_version('Gst', '1.0')
-gi.require_version('Wnck', '3.0')
+# Wnck removed for Wayland compatibility
 gi.require_version('SugarExt', '1.0')
-gi.require_version('GdkX11', '3.0')
 
 from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Gtk
+from gi.repository import Gdk
 from gi.repository import Gst
-from gi.repository import Wnck
 
 from sugar3 import env
 
@@ -131,17 +130,19 @@ def setup_file_transfer_cb():
 def setup_window_manager():
     logging.debug('STARTUP: window_manager')
 
-    if subprocess.call('metacity-message disable-keybindings',
-                       shell=True):
-        logging.warning('Can not disable metacity keybindings')
+    if os.environ.get('XDG_SESSION_TYPE') == 'wayland':
+        logging.debug('Wayland session detected, skipping metacity configuration')
+        return
 
-    if subprocess.call('metacity-message disable-mouse-button-modifiers',
-                       shell=True):
-        logging.warning('Can not disable metacity mouse button modifiers')
+    try:
+        subprocess.call('metacity-message disable-keybindings', shell=True)
+        subprocess.call('metacity-message disable-mouse-button-modifiers', shell=True)
+    except Exception:
+        logging.warning('Could not disable metacity features')
 
 
-def __window_manager_changed_cb(screen):
-    _check_for_window_manager(screen)
+def __window_manager_changed_cb(*args):
+    _check_for_window_manager()
 
 
 def _complete_desktop_startup():
@@ -160,13 +161,9 @@ def _complete_desktop_startup():
     testrunner.check_environment()
 
 
-def _check_for_window_manager(screen):
-    wm_name = screen.get_window_manager_name()
-    if wm_name is None:
-        return
-
-    screen.disconnect_by_func(__window_manager_changed_cb)
-
+def _check_for_window_manager():
+    # In Wayland, we don't use Wnck to get the window manager.
+    # We assume the compositor is already running.
     setup_window_manager()
 
     global _window_manager_started
@@ -187,6 +184,9 @@ def __window_manager_failed_cb(fd, condition):
 def _restart_window_manager():
     global _metacity_process, _metacity_sid
 
+    if os.environ.get('XDG_SESSION_TYPE') == 'wayland':
+        return False
+
     _metacity_process = subprocess.Popen(
         ['metacity', '--no-force-fullscreen', '--no-composite'],
         stdout=subprocess.PIPE)
@@ -204,15 +204,17 @@ def _start_window_manager():
 
     _restart_window_manager()
 
-    screen = Wnck.Screen.get_default()
-    screen.connect('window-manager-changed', __window_manager_changed_cb)
+    # screen = Wnck.Screen.get_default()
+    # screen.connect('window-manager-changed', __window_manager_changed_cb)
 
-    _check_for_window_manager(screen)
+    _check_for_window_manager()
 
 
 def _stop_window_manager():
-    _cursor_theme_settings.set_string('cursor-theme', _cursor_theme)
-    _metacity_process.terminate()
+    if hasattr(_cursor_theme_settings, 'set_string'):
+        _cursor_theme_settings.set_string('cursor-theme', _cursor_theme)
+    if _metacity_process is not None:
+        _metacity_process.terminate()
 
 
 def _begin_desktop_startup():
@@ -226,7 +228,7 @@ def _begin_desktop_startup():
 
     # open homewindow before window_manager to let desktop appear fast
     home_window = homewindow.get_instance()
-    home_window.show()
+    home_window.present()
 
 
 def __intro_window_done_cb(window):
@@ -312,16 +314,19 @@ def setup_theme():
     settings.set_property('gtk-theme-name', sugar_theme)
     settings.set_property('gtk-icon-theme-name', 'sugar')
     settings.set_property('gtk-cursor-blink-timeout', 3)
-    settings.set_property('gtk-button-images', True)
+    # gtk-button-images was removed in GTK4
 
     icons_path = os.path.join(config.data_path, 'icons')
-    Gtk.IconTheme.get_default().append_search_path(icons_path)
+    display = Gdk.Display.get_default()
+    if display:
+        theme = Gtk.IconTheme.get_for_display(display)
+        theme.add_search_path(icons_path)
 
 
 def _start_intro(start_on_age_page=False):
     window = IntroWindow(start_on_age_page=start_on_age_page)
     window.connect('done', __intro_window_done_cb)
-    window.show()
+    window.set_visible(True)
 
 
 def _check_profile():
@@ -371,7 +376,8 @@ def main():
         _begin_desktop_startup()
 
     try:
-        Gtk.main()
+        loop = GLib.MainLoop()
+        loop.run()
     except KeyboardInterrupt:
         print('Ctrl+C pressed, exiting...')
 

@@ -25,13 +25,14 @@ from jarabe.util.normalize import normalize_string
 from jarabe.model import desktop
 
 
-class HomeBox(Gtk.VBox):
+class HomeBox(Gtk.Box):
     __gtype_name__ = 'SugarHomeBox'
 
     def __init__(self, toolbar):
         logging.debug('STARTUP: Loading the home view')
 
-        Gtk.VBox.__init__(self)
+        # GTK4: Gtk.VBox → Gtk.Box(VERTICAL)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
 
         self._favorites_views_indicies = []
         for i in range(desktop.get_number_of_views()):
@@ -50,13 +51,19 @@ class HomeBox(Gtk.VBox):
         toolbar.search_entry._icon_selected = []
         toolbar.connect('query-changed', self.__toolbar_query_changed_cb)
         toolbar.connect('view-changed', self.__toolbar_view_changed_cb)
-        toolbar.search_entry.connect('key-press-event',
-                                     self.__search_entry_key_press_event_cb)
+
+        # GTK4: Use EventControllerKey instead of key-press-event
+        key_controller = Gtk.EventControllerKey()
+        key_controller.connect('key-pressed', self.__search_entry_key_press_cb)
+        toolbar.search_entry.add_controller(key_controller)
+
         toolbar.search_entry.connect('icon-press',
                                      self.__clear_icon_pressed_cb)
         self._list_view.connect('clear-clicked',
                                 self.__activitylist_clear_clicked_cb, toolbar)
 
+        self._toolbar = toolbar
+        self._current_child = None
         self._set_view(self._favorites_views_indicies[0])
         self._query = ''
         self._resume_mode = Gio.Settings.new(
@@ -91,9 +98,7 @@ class HomeBox(Gtk.VBox):
         toolbar.search_entry._icon_selected = \
             self._list_view.get_activities_selected()
 
-        # verify if one off the selected names is a perfect match
-        # this is needed by th case of activities with names contained
-        # in other activities like 'Paint' and 'MusicPainter'
+        # verify if one of the selected names is a perfect match
         for activity in self._list_view.get_activities_selected():
             if activity['name'].upper() == query.upper():
                 toolbar.search_entry._icon_selected = [activity]
@@ -110,10 +115,9 @@ class HomeBox(Gtk.VBox):
     def __toolbar_view_changed_cb(self, toolbar, view):
         self._set_view(view)
 
-    def __search_entry_key_press_event_cb(self, entry, event):
-        # wherever a single item is selected in a desktop view,
-        # launch the activity on pressing return
-        if event.keyval == Gdk.KEY_Return and len(entry._icon_selected) == 1:
+    def __search_entry_key_press_cb(self, controller, keyval, keycode, state):
+        entry = self._toolbar.search_entry
+        if keyval == Gdk.KEY_Return and len(entry._icon_selected) == 1:
             self._list_view.run_activity(entry._icon_selected[0]['bundle_id'],
                                          self._resume_mode)
             entry._icon_selected = []
@@ -122,46 +126,42 @@ class HomeBox(Gtk.VBox):
     def __activitylist_clear_clicked_cb(self, widget, toolbar):
         toolbar.clear_query()
 
-    def __clear_icon_pressed_cb(self, entry, icon_pos, event):
+    def __clear_icon_pressed_cb(self, entry, icon_pos):
         self.grab_focus()
 
     def grab_focus(self):
-        # overwrite grab focus to be able to grab focus on the
-        # views which are packed inside a box
-        children = self.get_children()
-        if self._list_view in children:
+        # GTK4: Check current child widget
+        if self._current_child == self._list_view:
             self._list_view.grab_focus()
-        else:
-            for i in range(desktop.get_number_of_views()):
-                if self._favorites_boxes[i] in children:
-                    self._favorites_boxes[i].grab_focus()
+        elif self._current_child:
+            self._current_child.grab_focus()
 
     def _set_view(self, view):
         if view in self._favorites_views_indicies:
             favorite = self._favorites_views_indicies.index(view)
 
-            children = self.get_children()
-            if self._list_view in children:
-                self.remove(self._list_view)
-            else:
-                for i in range(desktop.get_number_of_views()):
-                    if i != favorite and self._favorites_boxes[i] in children:
-                        self.remove(self._favorites_boxes[i])
+            # GTK4: Remove current child
+            if self._current_child is not None:
+                self.remove(self._current_child)
 
-            if self._favorites_boxes[favorite] not in children:
-                self.add(self._favorites_boxes[favorite])
-                self._favorites_boxes[favorite].show()
-                self._favorites_boxes[favorite].grab_focus()
+            self.append(self._favorites_boxes[favorite])
+            self._favorites_boxes[favorite].set_hexpand(True)
+            self._favorites_boxes[favorite].set_vexpand(True)
+            self._favorites_boxes[favorite].set_visible(True)
+            self._favorites_boxes[favorite].grab_focus()
+            self._current_child = self._favorites_boxes[favorite]
+
         elif view == self._list_view_index:
-            children = self.get_children()
-            for i in range(desktop.get_number_of_views()):
-                if self._favorites_boxes[i] in children:
-                    self.remove(self._favorites_boxes[i])
+            # GTK4: Remove current child
+            if self._current_child is not None:
+                self.remove(self._current_child)
 
-            if self._list_view not in children:
-                self.add(self._list_view)
-                self._list_view.show()
-                self._list_view.grab_focus()
+            self.append(self._list_view)
+            self._list_view.set_hexpand(True)
+            self._list_view.set_vexpand(True)
+            self._list_view.set_visible(True)
+            self._list_view.grab_focus()
+            self._current_child = self._list_view
         else:
             raise ValueError('Invalid view: %r' % view)
 

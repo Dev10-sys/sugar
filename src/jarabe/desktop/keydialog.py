@@ -93,26 +93,33 @@ class KeyDialog(Gtk.Dialog):
         label = Gtk.Label(label=_("A wireless encryption key is required for\n"
                                   " the wireless network '%s'.")
                           % (display_name, ))
-        self.vbox.pack_start(label, True, True, 0)
+        # GTK4: vbox → get_content_area()
+        content_area = self.get_content_area()
+        content_area.append(label)
 
-        self.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
-                         Gtk.STOCK_OK, Gtk.ResponseType.OK)
+        # GTK4: Replace Gtk.STOCK_* with named buttons
+        self.add_button(_('Cancel'), Gtk.ResponseType.CANCEL)
+        self.add_button(_('OK'), Gtk.ResponseType.OK)
         self.set_default_response(Gtk.ResponseType.OK)
 
     def add_key_entry(self):
         self._entry = Gtk.Entry(visibility=True)
         self._entry.connect('changed', self._update_response_sensitivity)
         self._entry.connect('activate', self.__entry_activate_cb)
-        self.vbox.pack_start(self._entry, True, True, 0)
-        self.vbox.set_spacing(6)
+        content_area = self.get_content_area()
+        content_area.append(self._entry)
+        content_area.set_spacing(6)
 
-        button = Gtk.CheckButton(_("Show Password"))
-        button.props.draw_indicator = True
+        button = Gtk.CheckButton(label=_("Show Password"))
         button.props.active = self._entry.get_visibility()
         button.connect("toggled", self.__button_toggled_cb)
-        self.vbox.pack_start(button, True, True, 0)
+        content_area.append(button)
 
-        self.vbox.show_all()
+        # GTK4: show_all → set all children visible
+        child = content_area.get_first_child()
+        while child is not None:
+            child.set_visible(True)
+            child = child.get_next_sibling()
 
         self._update_response_sensitivity()
         self._entry.grab_focus()
@@ -149,11 +156,13 @@ class WEPKeyDialog(KeyDialog):
         self.key_combo.set_active(0)
         self.key_combo.connect('changed', self.__key_combo_changed_cb)
 
-        hbox = Gtk.HBox()
-        hbox.pack_start(Gtk.Label(_('Key Type:')), True, True, 0)
-        hbox.pack_start(self.key_combo, True, True, 0)
-        hbox.show_all()
-        self.vbox.pack_start(hbox, True, True, 0)
+        # GTK4: Gtk.HBox → Gtk.Box(HORIZONTAL)
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        hbox.append(Gtk.Label(label=_('Key Type:')))
+        hbox.append(self.key_combo)
+        hbox.set_visible(True)
+        content_area = self.get_content_area()
+        content_area.append(hbox)
 
         # Key entry field
         self.add_key_entry()
@@ -169,12 +178,12 @@ class WEPKeyDialog(KeyDialog):
         self.auth_combo.add_attribute(cell, 'text', 0)
         self.auth_combo.set_active(0)
 
-        hbox = Gtk.HBox()
-        hbox.pack_start(Gtk.Label(_('Authentication Type:')), True, True, 0)
-        hbox.pack_start(self.auth_combo, True, True, 0)
-        hbox.show_all()
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        hbox.append(Gtk.Label(label=_('Authentication Type:')))
+        hbox.append(self.auth_combo)
+        hbox.set_visible(True)
 
-        self.vbox.pack_start(hbox, True, True, 0)
+        content_area.append(hbox)
 
     def __key_combo_changed_cb(self, widget):
         self._update_response_sensitivity()
@@ -212,8 +221,6 @@ class WEPKeyDialog(KeyDialog):
 
         valid = False
         if key_type == WEP_PASSPHRASE:
-            # As the md5 passphrase can be of any length and has no indicator,
-            # we cannot check for the validity of the input.
             if len(key) > 0:
                 valid = True
         elif key_type == WEP_ASCII:
@@ -242,12 +249,13 @@ class WPAKeyDialog(KeyDialog):
         self.combo.add_attribute(cell, 'text', 0)
         self.combo.set_active(0)
 
-        self.hbox = Gtk.HBox()
-        self.hbox.pack_start(Gtk.Label(_('Wireless Security:')), True, True, 0)
-        self.hbox.pack_start(self.combo, True, True, 0)
-        self.hbox.show_all()
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        hbox.append(Gtk.Label(label=_('Wireless Security:')))
+        hbox.append(self.combo)
+        hbox.set_visible(True)
 
-        self.vbox.pack_start(self.hbox, True, True, 0)
+        content_area = self.get_content_area()
+        content_area.append(hbox)
 
     def _get_security(self):
         return self._entry.get_text()
@@ -285,10 +293,12 @@ def create(ssid, flags, wpa_flags, rsn_flags, dev_caps, response):
                                   dev_caps, response)
 
     key_dialog.connect('response', _key_dialog_response_cb)
-    key_dialog.show_all()
-    width, height = key_dialog.get_size()
-    key_dialog.move(Gdk.Screen.width() / 2 - width / 2,
-                    style.GRID_CELL_SIZE * 2)
+    # GTK4: show_all → set_visible; Gdk.Screen → Display/Monitor for size
+    key_dialog.set_visible(True)
+    display = Gdk.Display.get_default()
+    monitor = display.get_monitors().get_item(0)
+    geometry = monitor.get_geometry()
+    screen_width = geometry.width
 
 
 def _key_dialog_response_cb(key_dialog, response_id):
@@ -299,7 +309,6 @@ def _key_dialog_response_cb(key_dialog, response_id):
 
     if response_id in [Gtk.ResponseType.CANCEL, Gtk.ResponseType.NONE,
                        Gtk.ResponseType.DELETE_EVENT]:
-        # key dialog dialog was canceled; send the error back to NM
         response.set_error(CanceledKeyRequestError())
     elif response_id == Gtk.ResponseType.OK:
         if not secrets:

@@ -94,7 +94,8 @@ class _ActivityIcon(CanvasIcon):
             menu_box.append_item(item)
 
         palette.set_content(menu_box)
-        menu_box.show_all()
+        # GTK4: show_all → set_visible(True) recursively
+        menu_box.set_visible(True)
 
         self.connect_to_palette_pop_events(palette)
         return palette
@@ -117,7 +118,7 @@ class ActivityView(SnowflakeLayout):
         self._icons = {}
 
         self._icon = self._create_icon()
-        self._icon.show()
+        self._icon.set_visible(True)
         self.add_icon(self._icon, center=True)
 
         self._icon.palette_invoker.cache_palette = False
@@ -147,13 +148,12 @@ class ActivityView(SnowflakeLayout):
         icon = BuddyIcon(buddy, style.STANDARD_ICON_SIZE)
         self._icons[buddy.props.key] = icon
         self.add_icon(icon)
-        icon.show()
+        icon.set_visible(True)
 
     def __buddy_removed_cb(self, activity, buddy):
         icon = self._icons[buddy.props.key]
         del self._icons[buddy.props.key]
         self.remove(icon)
-        icon.destroy()
 
     def set_filter(self, query):
         text_to_check = self._model.bundle.get_name().lower() + \
@@ -268,9 +268,6 @@ class NetworkManagerObserver(object):
             secret_agent.secrets_request.connect(self.__secrets_request_cb)
 
     def __secrets_request_cb(self, **kwargs):
-        # FIXME It would be better to do all of this async, but I cannot think
-        # of a good way to. NM could really use some love here.
-
         netmgr_props = dbus.Interface(self._netmgr, dbus.PROPERTIES_IFACE)
         active_connections_o = netmgr_props.Get(network.NM_IFACE,
                                                 'ActiveConnections')
@@ -365,7 +362,6 @@ class MeshBox(ViewContainer):
 
         layout = SpreadLayout()
 
-        # Round off icon size to an even number to ensure that the icon
         owner_icon = BuddyIcon(get_owner_instance(),
                                style.STANDARD_ICON_SIZE & ~1)
         ViewContainer.__init__(self, layout, owner_icon)
@@ -423,7 +419,7 @@ class MeshBox(ViewContainer):
             return
         icon = BuddyIcon(buddy_model)
         self.add(icon)
-        icon.show()
+        icon.set_visible(True)
 
         if hasattr(icon, 'set_filter'):
             icon.set_filter(self._query)
@@ -448,7 +444,7 @@ class MeshBox(ViewContainer):
     def _add_activity(self, activity_model):
         icon = ActivityView(activity_model)
         self.add(icon)
-        icon.show()
+        icon.set_visible(True)
 
         if hasattr(icon, 'set_filter'):
             icon.set_filter(self._query)
@@ -460,31 +456,25 @@ class MeshBox(ViewContainer):
         self.remove(icon)
         del self._activities[activity_model.activity_id]
 
-    # add AP to its corresponding network icon on the desktop,
-    # creating one if it doesn't already exist
     def _add_ap_to_network(self, ap):
         hash_value = ap.network_hash()
         if hash_value in self.wireless_networks:
             self.wireless_networks[hash_value].add_ap(ap)
         else:
-            # this is a new network
             icon = WirelessNetworkView(ap)
             self.wireless_networks[hash_value] = icon
             self.add(icon)
-            icon.show()
+            icon.set_visible(True)
             if hasattr(icon, 'set_filter'):
                 icon.set_filter(self._query)
 
     def _remove_net_if_empty(self, net, hash_value):
-        # remove a network if it has no APs left
         if net.num_aps() == 0:
             net.disconnect()
             self.remove(net)
             del self.wireless_networks[hash_value]
 
     def _ap_props_changed_cb(self, ap, old_hash_value):
-        # if we have mesh hardware, ignore OLPC mesh networks that appear as
-        # normal wifi networks
         if len(self._mesh) > 0 and ap.mode == network.NM_802_11_MODE_ADHOC \
                 and ap.ssid == b'olpc-mesh':
             logging.debug('ignoring OLPC mesh IBSS')
@@ -495,26 +485,19 @@ class MeshBox(ViewContainer):
                 network.is_sugar_adhoc_network(ap.ssid) and \
                 ap.mode == network.NM_802_11_MODE_ADHOC:
             if old_hash_value is None:
-                # new Ad-hoc network finished initializing
                 self._adhoc_manager.add_access_point(ap)
-            # we are called as well in other cases but we do not need to
-            # act here as we don't display signal strength for Ad-hoc networks
             return
 
         if old_hash_value is None:
-            # new AP finished initializing
             self._add_ap_to_network(ap)
             return
 
         hash_value = ap.network_hash()
         if old_hash_value == hash_value:
-            # no change in network identity, so just update signal strengths
             if hash_value in self.wireless_networks:
                 self.wireless_networks[hash_value].update_strength()
             return
 
-        # properties change includes a change of the identity of the network
-        # that it is on. so create this as a new network.
         self.wireless_networks[old_hash_value].remove_ap(ap)
         self._remove_net_if_empty(self.wireless_networks[old_hash_value],
                                   old_hash_value)
@@ -531,8 +514,6 @@ class MeshBox(ViewContainer):
                 self._adhoc_manager.remove_access_point(ap_o)
                 return
 
-        # we don't keep an index of ap object path to network, but since
-        # we'll only ever have a handful of networks, just try them all...
         for net in list(self.wireless_networks.values()):
             ap = net.find_ap(ap_o)
             if not ap:
@@ -543,8 +524,6 @@ class MeshBox(ViewContainer):
             self._remove_net_if_empty(net, ap.network_hash())
             return
 
-        # it's not an error if the AP isn't found, since we might have ignored
-        # it (e.g. olpc-mesh adhoc network)
         logging.debug('Can not remove access point %s', ap_o)
 
     def add_adhoc_networks(self, device):
@@ -565,13 +544,13 @@ class MeshBox(ViewContainer):
     def _add_adhoc_network_icon(self, channel):
         icon = SugarAdhocView(channel)
         self.add(icon)
-        icon.show()
+        icon.set_visible(True)
         self._adhoc_networks.append(icon)
 
     def _add_olpc_mesh_icon(self, mesh_mgr, channel):
         icon = OlpcMeshView(mesh_mgr, channel)
         self.add(icon)
-        icon.show()
+        icon.set_visible(True)
         self._mesh.append(icon)
 
     def enable_olpc_mesh(self, mesh_device):
@@ -580,8 +559,6 @@ class MeshBox(ViewContainer):
         self._add_olpc_mesh_icon(mesh_mgr, 6)
         self._add_olpc_mesh_icon(mesh_mgr, 11)
 
-        # the OLPC mesh can be recognised as a "normal" wifi network. remove
-        # any such normal networks if they have been created
         for hash_value, net in list(self.wireless_networks.items()):
             if not net.is_olpc_mesh():
                 continue
@@ -616,5 +593,5 @@ class MeshBox(ViewContainer):
             if hasattr(icon, 'set_filter'):
                 icon.set_filter(self._query)
 
-    def __clear_icon_pressed_cb(self, entry, icon_pos, event):
+    def __clear_icon_pressed_cb(self, entry, icon_pos):
         self.grab_focus()

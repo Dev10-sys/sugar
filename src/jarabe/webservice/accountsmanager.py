@@ -169,8 +169,11 @@ def _load_service_module(path, service_name):
 
 
 def _extend_icon_theme_search_path(path):
-    icon_theme = Gtk.IconTheme.get_default()
-    icon_search_path = icon_theme.get_search_path()
+    display = Gtk.Widget().get_display() if Gtk.is_initialized() else None
+    if display is None:
+        from gi.repository import Gdk
+        display = Gdk.Display.get_default()
+    icon_theme = Gtk.IconTheme.get_for_display(display)
     try:
         icon_path_dirs = os.listdir(path)
     except OSError as e:
@@ -180,9 +183,8 @@ def _extend_icon_theme_search_path(path):
     for file in icon_path_dirs:
         if file == 'icons':
             icon_path = os.path.join(path, file)
-            if os.path.isdir(icon_path) and \
-                    icon_path not in icon_search_path:
-                icon_theme.append_search_path(icon_path)
+            if os.path.isdir(icon_path):
+                icon_theme.add_search_path(icon_path)
 
 
 def get_account(service_name):

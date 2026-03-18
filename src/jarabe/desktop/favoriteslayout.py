@@ -68,7 +68,7 @@ class ViewLayout(Layout):
     def _allocate_owner_icon(self, allocation, owner_icon, activity_icon):
         # add owner icon to the grid, precisely centered on the screen
         # if not None, add an activity icon directly below the owner icon
-        owner_request = owner_icon.size_request()
+        owner_request = owner_icon.get_preferred_size()[1]
         owner_width, owner_height = owner_request.width, owner_request.height
         height = allocation.height + allocation.y
         width = allocation.width
@@ -106,7 +106,7 @@ class ViewLayout(Layout):
 
         # Position the current activity below the XO icon
         # FIXME must ensure we cross into next grid cell here..
-        activity_request = activity_icon.size_request()
+        activity_request = activity_icon.get_preferred_size()[1]
         activity_icon_allocation = Gdk.Rectangle()
         activity_icon_allocation.x = (width - activity_request.width) / 2
         activity_icon_allocation.y = owner_icon_allocation.y + owner_height
@@ -130,7 +130,7 @@ class ViewLayout(Layout):
 
     def move(self, child, x, y, allocation=None):
         self._grid.move(child, x / _CELL_SIZE, y / _CELL_SIZE, locked=True)
-        child_request = child.size_request()
+        child_request = child.get_preferred_size()[1]
         rect = self._grid.get_child_rect(child)
 
         child_allocation = Gdk.Rectangle()
@@ -141,13 +141,13 @@ class ViewLayout(Layout):
         child.size_allocate(child_allocation)
 
     def _get_child_grid_size(self, child):
-        request = child.size_request()
+        request = child.get_preferred_size()[1]
         width = math.ceil(request.width / _CELL_SIZE)
         height = math.ceil(request.height / _CELL_SIZE)
         return int(width), int(height)
 
     def __grid_child_changed_cb(self, grid, child, allocation):
-        request = child.size_request()
+        request = child.get_preferred_size()[1]
         rect = self._grid.get_child_rect(child)
         child_allocation = Gdk.Rectangle()
         child_allocation.x = int(round(rect.x * _CELL_SIZE))
@@ -238,7 +238,7 @@ class RandomLayout(SpreadLayout):
 
     def allocate_children(self, allocation, children):
         for child in children:
-            child_requisition = child.size_request()
+            child_requisition = child.get_preferred_size()[1]
             if not self._grid.is_in_grid(child):
                 self._add_fixed_position(child, allocation)
 
@@ -369,7 +369,11 @@ class RingLayout(ViewLayout):
 
     def _calculate_maximum_radius(self, icon_size):
         """ Return the maximum radius including encroachment. """
-        r = (Gdk.Screen.height() - style.GRID_CELL_SIZE) / 2 - \
+        # GTK4: Gdk.Screen → Display/Monitor
+        _display = Gdk.Display.get_default()
+        _monitor = _display.get_monitors().get_item(0)
+        _geom = _monitor.get_geometry()
+        r = (_geom.height - style.GRID_CELL_SIZE) / 2 - \
             style.DEFAULT_SPACING
         return r - (icon_size * _MAXIMUM_RADIUS_PADDING_FACTOR)
 
@@ -417,8 +421,9 @@ class RingLayout(ViewLayout):
             y += icon_size / 2
 
             child.set_size(icon_size)
-            new_width = child.get_preferred_width()[0]
-            new_height = child.get_preferred_height()[0]
+            requisition = child.get_preferred_size()[1]
+            new_width = requisition.width
+            new_height = requisition.height
             child_allocation = Gdk.Rectangle()
             child_allocation.x = allocation.x + x
             child_allocation.y = allocation.y + y

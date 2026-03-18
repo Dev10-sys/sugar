@@ -81,8 +81,10 @@ class Frame(object):
         self._left_panel = self._create_left_panel()
         self._right_panel = self._create_right_panel()
 
-        screen = Gdk.Screen.get_default()
-        screen.connect('size-changed', self._size_changed_cb)
+        display = Gdk.Display.get_default()
+        if display:
+            monitor = display.get_monitors().get_item(0)
+            monitor.connect('notify::geometry', self._monitor_changed_cb)
 
         self._notif_by_icon = {}
 
@@ -190,8 +192,14 @@ class Frame(object):
         self.hide()
 
     def _update_position(self):
-        screen_h = Gdk.Screen.height()
-        screen_w = Gdk.Screen.width()
+        display = Gdk.Display.get_default()
+        if display is None:
+            return
+
+        monitor = display.get_monitors().get_item(0)
+        geometry = monitor.get_geometry()
+        screen_h = geometry.height
+        screen_w = geometry.width
 
         self._move_panel(self._top_panel, self.current_position,
                          0, - self._top_panel.size, 0, 0)
@@ -205,7 +213,7 @@ class Frame(object):
         self._move_panel(self._right_panel, self.current_position,
                          screen_w, 0, screen_w - self._right_panel.size, 0)
 
-    def _size_changed_cb(self, screen):
+    def _monitor_changed_cb(self, monitor, pspec):
         self._update_position()
 
     def _enter_corner_cb(self, event_area):
@@ -227,25 +235,28 @@ class Frame(object):
 
         window = NotificationWindow()
 
-        screen = Gdk.Screen.get_default()
-        if screen is None:
-            logging.debug('Frame: screen not available for notification')
+        display = Gdk.Display.get_default()
+        if display is None:
+            logging.debug('Frame: display not available for notification')
             return 0
+
+        monitor = display.get_monitors().get_item(0)
+        geometry = monitor.get_geometry()
+
         if corner == Gtk.CornerType.TOP_LEFT:
             window.move(0, 0)
         elif corner == Gtk.CornerType.TOP_RIGHT:
-            window.move(screen.get_width() - style.GRID_CELL_SIZE, 0)
+            window.move(geometry.width - style.GRID_CELL_SIZE, 0)
         elif corner == Gtk.CornerType.BOTTOM_LEFT:
-            window.move(0, screen.get_height() - style.GRID_CELL_SIZE)
+            window.move(0, geometry.height - style.GRID_CELL_SIZE)
         elif corner == Gtk.CornerType.BOTTOM_RIGHT:
-            window.move(screen.get_width() - style.GRID_CELL_SIZE,
-                        screen.get_height() - style.GRID_CELL_SIZE)
+            window.move(geometry.width - style.GRID_CELL_SIZE,
+                        geometry.height - style.GRID_CELL_SIZE)
         else:
             raise ValueError('Inalid corner: %r' % corner)
 
-        window.add(icon)
-        icon.show()
-        window.show()
+        window.set_child(icon)
+        window.present()
 
         self._notif_by_icon[icon] = window
 
@@ -262,7 +273,8 @@ class Frame(object):
         window.destroy()
         del self._notif_by_icon[icon]
 
-    def __button_release_event_cb(self, icon, data=None):
+    def __button_release_cb(self, gesture, n_press, x, y):
+        icon = gesture.get_widget()
         self.remove_notification(icon)
         self.show()
 
@@ -270,7 +282,10 @@ class Frame(object):
         logging.debug('__notification_received_cb')
         icon = NotificationIcon()
         icon.show_badge()
-        icon.connect('button-release-event', self.__button_release_event_cb)
+        # GTK4: button-release-event → GestureClick
+        _click = Gtk.GestureClick()
+        _click.connect('released', self.__button_release_cb)
+        icon.add_controller(_click)
 
         hints = kwargs['hints']
 

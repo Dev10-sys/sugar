@@ -123,25 +123,24 @@ class NumberEntry(Gtk.Entry):
         self.set_text(''.join([i for i in text if i in '0123456789']))
 
 
-class SettingBox(Gtk.HBox):
+class SettingBox(Gtk.Box):
     """
     Base class for "lines" on the screen representing configuration
     settings.
     """
 
     def __init__(self, name, size_group=None):
-        Gtk.HBox.__init__(self, spacing=style.DEFAULT_SPACING)
-        label = Gtk.Label(name)
-        label.modify_fg(Gtk.StateType.NORMAL,
-                        style.COLOR_SELECTION_GREY.get_gdk_color())
-        label.set_alignment(1, 0.5)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL, spacing=style.DEFAULT_SPACING)
+        label = Gtk.Label(label=name)
+        label.set_xalign(1.0)
+        label.set_yalign(0.5)
         if size_group is not None:
             size_group.add_widget(label)
-        self.pack_start(label, False, False, 0)
-        label.show()
+        self.append(label)
+        label.set_visible(True)
 
 
-class ComboSettingBox(Gtk.VBox):
+class ComboSettingBox(Gtk.Box):
     """
     Container for sets of different settings selected by a top-level
     setting.
@@ -152,17 +151,17 @@ class ComboSettingBox(Gtk.VBox):
 
     def __init__(self, name, setting, setting_key,
                  option_sets, size_group=None):
-        Gtk.VBox.__init__(self, spacing=style.DEFAULT_SPACING)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL, spacing=style.DEFAULT_SPACING)
 
         setting_box = SettingBox(name, size_group)
-        self.pack_start(setting_box, False, False, 0)
-        setting_box.show()
+        self.append(setting_box)
+        setting_box.set_visible(True)
 
         model = Gtk.ListStore(str, str, object)
         combo_box = Gtk.ComboBox(model=model)
         combo_box.connect('changed', self.__combo_changed_cb)
-        setting_box.pack_start(combo_box, True, True, 0)
-        combo_box.show()
+        setting_box.append(combo_box)
+        combo_box.set_visible(True)
 
         cell_renderer = Gtk.CellRendererText()
         cell_renderer.props.ellipsize = Pango.EllipsizeMode.MIDDLE
@@ -171,9 +170,9 @@ class ComboSettingBox(Gtk.VBox):
         combo_box.add_attribute(cell_renderer, 'text', 0)
         combo_box.props.id_column = 1
 
-        self._settings_box = Gtk.VBox()
-        self._settings_box.show()
-        self.pack_start(self._settings_box, False, False, 0)
+        self._settings_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self._settings_box.set_visible(True)
+        self.append(self._settings_box)
 
         for optset in option_sets:
             model.append(optset)
@@ -192,7 +191,7 @@ class ComboSettingBox(Gtk.VBox):
         new_box.show()
 
 
-class OptionalSettingsBox(Gtk.VBox):
+class OptionalSettingsBox(Gtk.Box):
     """
     Container for settings (de)activated by a top-level setting.
 
@@ -201,14 +200,14 @@ class OptionalSettingsBox(Gtk.VBox):
     """
 
     def __init__(self, name, setting, setting_key, contents_box):
-        Gtk.VBox.__init__(self, spacing=style.DEFAULT_SPACING)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL, spacing=style.DEFAULT_SPACING)
 
         check_button = Gtk.CheckButton()
-        check_button.props.label = name
+        check_button.set_label(name)
         check_button.connect('toggled', self.__button_toggled_cb, contents_box)
-        check_button.show()
-        self.pack_start(check_button, True, True, 0)
-        self.pack_start(contents_box, False, False, 0)
+        check_button.set_visible(True)
+        self.append(check_button)
+        self.append(contents_box)
 
         setting.bind(setting_key, check_button, 'active',
                      Gio.SettingsBindFlags.DEFAULT)
@@ -224,19 +223,19 @@ class HostPortSettingBox(SettingBox):
 
     def __init__(self, name, alert, setting, size_group=None):
         SettingBox.__init__(self, name, size_group)
-        self.pack_start(alert, False, True, 0)
+        self.append(alert)
         alert.hide()
 
         host_entry = Gtk.Entry()
-        self.pack_start(host_entry, True, True, 0)
-        host_entry.show()
+        self.append(host_entry)
+        host_entry.set_visible(True)
 
         setting.bind('host', host_entry, 'text', Gio.SettingsBindFlags.DEFAULT)
 
         # port number 0 means n/a
         port_entry = NumberEntry()
-        self.pack_start(port_entry, False, False, 0)
-        port_entry.show()
+        self.append(port_entry)
+        port_entry.set_visible(True)
         setting.bind_with_convert('port',
                                   port_entry,
                                   "text",
@@ -257,8 +256,8 @@ class StringSettingBox(SettingBox):
         SettingBox.__init__(self, name, size_group)
 
         entry = Gtk.Entry()
-        self.pack_start(entry, True, True, 0)
-        entry.show()
+        self.append(entry)
+        entry.set_visible(True)
         if password_field:
             entry.set_visibility(False)
 
@@ -306,177 +305,198 @@ class Network(SectionView):
         self._proxy_settings = {}
         self._proxy_inline_alerts = {}
 
-        self.set_border_width(style.DEFAULT_SPACING * 2)
+        self.set_margin_start(style.DEFAULT_SPACING * 2)
+        self.set_margin_end(style.DEFAULT_SPACING * 2)
+        self.set_margin_top(style.DEFAULT_SPACING * 2)
+        self.set_margin_bottom(style.DEFAULT_SPACING * 2)
         self.set_spacing(style.DEFAULT_SPACING)
-        group = Gtk.SizeGroup(Gtk.SizeGroupMode.HORIZONTAL)
+        group = Gtk.SizeGroup(mode=Gtk.SizeGroupMode.HORIZONTAL)
 
-        self._radio_alert_box = Gtk.HBox(spacing=style.DEFAULT_SPACING)
+        self._radio_alert_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=style.DEFAULT_SPACING)
 
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        self.add(scrolled)
-        scrolled.show()
+        self.set_child(scrolled)
+        scrolled.set_visible(True)
 
-        workspace = Gtk.VBox()
-        scrolled.add_with_viewport(workspace)
-        workspace.show()
+        workspace = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        scrolled.set_child(workspace)
+        workspace.set_visible(True)
 
-        separator_wireless = Gtk.HSeparator()
-        workspace.pack_start(separator_wireless, False, True, 0)
-        separator_wireless.show()
+        separator_wireless = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        workspace.append(separator_wireless)
+        separator_wireless.set_visible(True)
 
         label_wireless = Gtk.Label(label=_('Wireless'))
-        label_wireless.set_alignment(0, 0)
-        workspace.pack_start(label_wireless, False, True, 0)
-        label_wireless.show()
-        box_wireless = Gtk.VBox()
-        box_wireless.set_border_width(style.DEFAULT_SPACING * 2)
+        label_wireless.set_xalign(0.0)
+        label_wireless.set_yalign(0.0)
+        workspace.append(label_wireless)
+        label_wireless.set_visible(True)
+
+        box_wireless = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        box_wireless.set_margin_start(style.DEFAULT_SPACING * 2)
+        box_wireless.set_margin_end(style.DEFAULT_SPACING * 2)
+        box_wireless.set_margin_top(style.DEFAULT_SPACING * 2)
+        box_wireless.set_margin_bottom(style.DEFAULT_SPACING * 2)
         box_wireless.set_spacing(style.DEFAULT_SPACING)
 
         radio_info = Gtk.Label(label=_('The wireless radio may be turned'
                                        ' off to save battery life.'))
-        radio_info.set_alignment(0, 0)
+        radio_info.set_xalign(0.0)
+        radio_info.set_yalign(0.0)
         radio_info.set_line_wrap(True)
-        radio_info.show()
-        box_wireless.pack_start(radio_info, False, True, 0)
+        radio_info.set_visible(True)
+        box_wireless.append(radio_info)
 
-        box_radio = Gtk.HBox(spacing=style.DEFAULT_SPACING)
+        box_radio = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=style.DEFAULT_SPACING)
         self._button = Gtk.CheckButton()
-        self._button.set_alignment(0, 0)
-        box_radio.pack_start(self._button, False, True, 0)
-        self._button.show()
+        box_radio.append(self._button)
+        self._button.set_visible(True)
 
         label_radio = Gtk.Label(label=_('Radio'))
-        label_radio.set_alignment(0, 0.5)
-        box_radio.pack_start(label_radio, False, True, 0)
-        label_radio.show()
+        label_radio.set_xalign(0.0)
+        label_radio.set_yalign(0.5)
+        box_radio.append(label_radio)
+        label_radio.set_visible(True)
 
-        box_wireless.pack_start(box_radio, False, True, 0)
-        box_radio.show()
+        box_wireless.append(box_radio)
+        box_radio.set_visible(True)
 
         self._radio_alert = InlineAlert()
-        self._radio_alert_box.pack_start(self._radio_alert, False, True, 0)
-        box_radio.pack_end(self._radio_alert_box, False, True, 0)
-        self._radio_alert_box.show()
+        self._radio_alert_box.append(self._radio_alert)
+        box_radio.append(self._radio_alert_box)
+        self._radio_alert_box.set_visible(True)
         if 'radio' in self.restart_alerts:
             self._radio_alert.props.msg = self.restart_msg
-            self._radio_alert.show()
+            self._radio_alert.set_visible(True)
 
         wireless_info = Gtk.Label(
             label=_('Discard wireless connections if'
                     ' you have trouble connecting to the network'))
-        wireless_info.set_alignment(0, 0)
+        wireless_info.set_xalign(0.0)
+        wireless_info.set_yalign(0.0)
         wireless_info.set_line_wrap(True)
-        wireless_info.show()
-        box_wireless.pack_start(wireless_info, False, True, 0)
+        wireless_info.set_visible(True)
+        box_wireless.append(wireless_info)
 
-        box_clear_wireless = Gtk.HBox(spacing=style.DEFAULT_SPACING)
+        box_clear_wireless = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=style.DEFAULT_SPACING)
         self._clear_wireless_button = Gtk.Button()
         self._clear_wireless_button.set_label(
             _('Discard wireless connections'))
-        box_clear_wireless.pack_start(
-            self._clear_wireless_button, False, True, 0)
+        box_clear_wireless.append(self._clear_wireless_button)
         if not self._model.have_wireless_networks():
             self._clear_wireless_button.set_sensitive(False)
-        self._clear_wireless_button.show()
-        box_wireless.pack_start(box_clear_wireless, False, True, 0)
-        box_clear_wireless.show()
+        self._clear_wireless_button.set_visible(True)
+        box_wireless.append(box_clear_wireless)
+        box_clear_wireless.set_visible(True)
 
-        workspace.pack_start(box_wireless, False, True, 0)
-        box_wireless.show()
+        workspace.append(box_wireless)
+        box_wireless.set_visible(True)
 
-        separator_mesh = Gtk.HSeparator()
-        workspace.pack_start(separator_mesh, False, False, 0)
-        separator_mesh.show()
+        separator_mesh = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        workspace.append(separator_mesh)
+        separator_mesh.set_visible(True)
 
         label_mesh = Gtk.Label(label=_('Collaboration'))
-        label_mesh.set_alignment(0, 0)
-        workspace.pack_start(label_mesh, False, True, 0)
-        label_mesh.show()
-        box_mesh = Gtk.VBox()
-        box_mesh.set_border_width(style.DEFAULT_SPACING * 2)
+        label_mesh.set_xalign(0.0)
+        label_mesh.set_yalign(0.0)
+        workspace.append(label_mesh)
+        label_mesh.set_visible(True)
+        box_mesh = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        box_mesh.set_margin_start(style.DEFAULT_SPACING * 2)
+        box_mesh.set_margin_end(style.DEFAULT_SPACING * 2)
+        box_mesh.set_margin_top(style.DEFAULT_SPACING * 2)
+        box_mesh.set_margin_bottom(style.DEFAULT_SPACING * 2)
         box_mesh.set_spacing(style.DEFAULT_SPACING)
 
-        server_info = Gtk.Label(_("The server is the equivalent of what"
-                                  " room you are in; people on the same server"
-                                  " will be able to see each other, even when"
-                                  " they aren't on the same network."))
-        server_info.set_alignment(0, 0)
+        server_info = Gtk.Label(label=_("The server is the equivalent of what"
+                                        " room you are in; people on the same server"
+                                        " will be able to see each other, even when"
+                                        " they aren't on the same network."))
+        server_info.set_xalign(0.0)
+        server_info.set_yalign(0.0)
         server_info.set_line_wrap(True)
-        box_mesh.pack_start(server_info, False, True, 0)
-        server_info.show()
+        box_mesh.append(server_info)
+        server_info.set_visible(True)
 
-        box_server = Gtk.HBox(spacing=style.DEFAULT_SPACING)
+        box_server = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=style.DEFAULT_SPACING)
         label_server = Gtk.Label(label=_('Server:'))
-        label_server.set_alignment(1, 0.5)
-        label_server.modify_fg(Gtk.StateType.NORMAL,
-                               style.COLOR_SELECTION_GREY.get_gdk_color())
-        box_server.pack_start(label_server, False, True, 0)
+        label_server.set_xalign(1.0)
+        label_server.set_yalign(0.5)
+        box_server.append(label_server)
         group.add_widget(label_server)
-        label_server.show()
+        label_server.set_visible(True)
         self._entry = Gtk.Entry()
-        self._entry.set_alignment(0)
-        self._entry.set_size_request(int(Gdk.Screen.width() / 3), -1)
-        box_server.pack_start(self._entry, False, True, 0)
-        self._entry.show()
-        box_mesh.pack_start(box_server, False, True, 0)
-        box_server.show()
+        self._entry.set_xalign(0)
+        
+        display = Gdk.Display.get_default()
+        monitor = display.get_monitors().get_item(0)
+        geometry = monitor.get_geometry()
+        self._entry.set_size_request(int(geometry.width / 3), -1)
+        box_server.append(self._entry)
+        self._entry.set_visible(True)
+        box_mesh.append(box_server)
+        box_server.set_visible(True)
 
-        social_help_info = Gtk.Label(
+        social_help_info = Gtk.Label(label=
             _('Social Help is a forum that lets you connect with developers'
               ' and discuss Sugar Activities.  Changing servers means'
               ' discussions will happen in a different place with'
               ' different people.'))
-        social_help_info.set_alignment(0, 0)
+        social_help_info.set_xalign(0.0)
+        social_help_info.set_yalign(0.0)
         social_help_info.set_line_wrap(True)
-        box_mesh.pack_start(social_help_info, False, True, 0)
-        social_help_info.show()
+        box_mesh.append(social_help_info)
+        social_help_info.set_visible(True)
 
-        social_help_box = Gtk.HBox(spacing=style.DEFAULT_SPACING)
+        social_help_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=style.DEFAULT_SPACING)
         social_help_label = Gtk.Label(label=_('Social Help Server:'))
-        social_help_label.set_alignment(1, 0.5)
-        social_help_label.modify_fg(Gtk.StateType.NORMAL,
-                                    style.COLOR_SELECTION_GREY.get_gdk_color())
-        social_help_box.pack_start(social_help_label, False, True, 0)
+        social_help_label.set_xalign(1.0)
+        social_help_label.set_yalign(0.5)
+        social_help_box.append(social_help_label)
         group.add_widget(social_help_label)
-        social_help_label.show()
+        social_help_label.set_visible(True)
 
         self._social_help_entry = Gtk.Entry()
-        self._social_help_entry.set_alignment(0)
+        self._social_help_entry.set_xalign(0)
         self._social_help_entry.set_size_request(
-            int(Gdk.Screen.width() / 3), -1)
-        social_help_box.pack_start(self._social_help_entry, False, True, 0)
-        self._social_help_entry.show()
-        box_mesh.pack_start(social_help_box, False, True, 0)
-        social_help_box.show()
+            int(geometry.width / 3), -1)
+        social_help_box.append(self._social_help_entry)
+        self._social_help_entry.set_visible(True)
+        box_mesh.append(social_help_box)
+        social_help_box.set_visible(True)
 
-        workspace.pack_start(box_mesh, False, True, 0)
-        box_mesh.show()
+        workspace.append(box_mesh)
+        box_mesh.set_visible(True)
 
-        separator_proxy = Gtk.HSeparator()
-        workspace.pack_start(separator_proxy, False, False, 0)
-        separator_proxy.show()
+        separator_proxy = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        workspace.append(separator_proxy)
+        separator_proxy.set_visible(True)
 
         self._add_proxy_section(workspace)
 
         self.setup()
 
     def _add_proxy_section(self, workspace):
-        label_proxy = Gtk.Label(_('Proxy'))
-        label_proxy.set_alignment(0, 0)
-        workspace.pack_start(label_proxy, False, True, 0)
-        label_proxy.show()
+        label_proxy = Gtk.Label(label=_('Proxy'))
+        label_proxy.set_xalign(0.0)
+        label_proxy.set_yalign(0.0)
+        workspace.append(label_proxy)
+        label_proxy.set_visible(True)
 
-        box_proxy = Gtk.VBox()
-        box_proxy.set_border_width(style.DEFAULT_SPACING * 2)
+        box_proxy = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        box_proxy.set_margin_start(style.DEFAULT_SPACING * 2)
+        box_proxy.set_margin_end(style.DEFAULT_SPACING * 2)
+        box_proxy.set_margin_top(style.DEFAULT_SPACING * 2)
+        box_proxy.set_margin_bottom(style.DEFAULT_SPACING * 2)
         box_proxy.set_spacing(style.DEFAULT_SPACING)
-        workspace.pack_start(box_proxy, False, True, 0)
-        box_proxy.show()
+        workspace.append(box_proxy)
+        box_proxy.set_visible(True)
 
         self._proxy_alert = Alert()
         self._proxy_alert.props.title = _('Error')
         self._proxy_alert.props.msg = _('Proxy settings cannot be verified')
-        box_proxy.pack_start(self._proxy_alert, False, False, 0)
+        box_proxy.append(self._proxy_alert)
         self._proxy_alert.connect('response', self._response_cb)
         self._proxy_alert.hide()
 
@@ -500,13 +520,13 @@ class Network(SectionView):
             self._proxy_settings[schema] = proxy_setting
             self._proxy_inline_alerts[schema] = alert
 
-        size_group = Gtk.SizeGroup(Gtk.SizeGroupMode.HORIZONTAL)
+        size_group = Gtk.SizeGroup(mode=Gtk.SizeGroupMode.HORIZONTAL)
 
-        automatic_proxy_box = Gtk.VBox(spacing=style.DEFAULT_SPACING)
-        manual_proxy_box = Gtk.VBox(spacing=style.DEFAULT_SPACING)
+        automatic_proxy_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=style.DEFAULT_SPACING)
+        manual_proxy_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=style.DEFAULT_SPACING)
 
-        option_sets = [('None', 'none', Gtk.VBox()),
-                       ('Use system proxy', 'system', Gtk.VBox()),
+        option_sets = [('None', 'none', Gtk.Box(orientation=Gtk.Orientation.VERTICAL)),
+                       ('Use system proxy', 'system', Gtk.Box(orientation=Gtk.Orientation.VERTICAL)),
                        ('Manual', 'manual', manual_proxy_box),
                        ('Automatic', 'auto', automatic_proxy_box)]
 
@@ -514,8 +534,8 @@ class Network(SectionView):
             _('Method:'), self._proxy_settings['org.sugarlabs.system.proxy'],
             'mode', option_sets, size_group)
 
-        box_proxy.pack_start(box_mode, False, False, 0)
-        box_mode.show()
+        box_proxy.append(box_mode)
+        box_mode.set_visible(True)
 
         url_box = StringSettingBox(
             _('Configuration URL:'),
@@ -523,46 +543,47 @@ class Network(SectionView):
             'autoconfig-url',
             size_group)
 
-        automatic_proxy_box.pack_start(url_box, True, True, 0)
-        url_box.show()
+        automatic_proxy_box.append(url_box)
+        url_box.set_visible(True)
 
         wpad_help_text = _('Web Proxy Autodiscovery is used when a'
                            ' Configuration URL is not provided. This is not'
                            ' recommended for untrusted public networks.')
-        automatic_proxy_help = Gtk.Label(wpad_help_text)
-        automatic_proxy_help.set_alignment(0, 0)
+        automatic_proxy_help = Gtk.Label(label=wpad_help_text)
+        automatic_proxy_help.set_xalign(0.0)
+        automatic_proxy_help.set_yalign(0.0)
         automatic_proxy_help.set_line_wrap(True)
-        automatic_proxy_help.show()
-        automatic_proxy_box.pack_start(automatic_proxy_help, True, True, 0)
+        automatic_proxy_help.set_visible(True)
+        automatic_proxy_box.append(automatic_proxy_help)
 
         # HTTP Section
         schema = 'org.sugarlabs.system.proxy.http'
         box_http = HostPortSettingBox(
             _('HTTP Proxy:'), self._proxy_inline_alerts[schema],
             self._proxy_settings[schema], size_group)
-        manual_proxy_box.pack_start(box_http, False, False, 0)
-        box_http.show()
-        auth_contents_box = Gtk.VBox(spacing=style.DEFAULT_SPACING)
+        manual_proxy_box.append(box_http)
+        box_http.set_visible(True)
+        auth_contents_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=style.DEFAULT_SPACING)
         auth_box = OptionalSettingsBox(
             _('Use authentication'),
             self._proxy_settings[schema],
             'use-authentication', auth_contents_box)
-        manual_proxy_box.pack_start(auth_box, False, False, 0)
-        auth_box.show()
+        manual_proxy_box.append(auth_box)
+        auth_box.set_visible(True)
         proxy_http_setting = Gio.Settings.new(schema)
         proxy_http_setting.delay()
         box_username = StringSettingBox(
             _('Username:'),
             self._proxy_settings[schema],
             'authentication-user', size_group)
-        auth_contents_box.pack_start(box_username, False, False, 0)
-        box_username.show()
+        auth_contents_box.append(box_username)
+        box_username.set_visible(True)
         box_password = StringSettingBox(
             _('Password:'),
             self._proxy_settings[schema],
             'authentication-password', size_group, password_field=True)
-        auth_contents_box.pack_start(box_password, False, False, 0)
-        box_password.show()
+        auth_contents_box.append(box_password)
+        box_password.set_visible(True)
 
         # HTTPS Section
         schema = 'org.sugarlabs.system.proxy.https'
@@ -570,8 +591,8 @@ class Network(SectionView):
             _('HTTPS Proxy:'), self._proxy_inline_alerts[schema],
             self._proxy_settings[schema],
             size_group)
-        manual_proxy_box.pack_start(box_https, False, False, 0)
-        box_https.show()
+        manual_proxy_box.append(box_https)
+        box_https.set_visible(True)
 
         # FTP Section
         schema = 'org.sugarlabs.system.proxy.ftp'
@@ -579,8 +600,8 @@ class Network(SectionView):
             _('FTP Proxy:'), self._proxy_inline_alerts[schema],
             self._proxy_settings[schema],
             size_group)
-        manual_proxy_box.pack_start(box_ftp, False, False, 0)
-        box_ftp.show()
+        manual_proxy_box.append(box_ftp)
+        box_ftp.set_visible(True)
 
         # SOCKS Section
         schema = 'org.sugarlabs.system.proxy.socks'
@@ -588,15 +609,15 @@ class Network(SectionView):
             _('SOCKS Proxy:'), self._proxy_inline_alerts[schema],
             self._proxy_settings[schema],
             size_group)
-        manual_proxy_box.pack_start(box_socks, False, False, 0)
-        box_socks.show()
+        manual_proxy_box.append(box_socks)
+        box_socks.set_visible(True)
 
         box_ignore = StringSettingBox_with_convert(
             _('Ignore Hosts:'),
             self._proxy_settings['org.sugarlabs.system.proxy'], 'ignore-hosts',
             type_as_to_string, string_to_type_as, size_group)
-        manual_proxy_box.pack_start(box_ignore, False, False, 0)
-        box_ignore.show()
+        manual_proxy_box.append(box_ignore)
+        box_ignore.set_visible(True)
 
     def setup(self):
         self._entry.set_text(self._start_jabber)

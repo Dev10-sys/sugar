@@ -161,7 +161,7 @@ def _convert_entry(root, document):
                       os.path.join(root, filename), metadata)
 
 
-class VolumesToolbar(Gtk.Toolbar):
+class VolumesToolbar(Gtk.Box):
     __gtype_name__ = 'VolumesToolbar'
 
     __gsignals__ = {
@@ -172,13 +172,13 @@ class VolumesToolbar(Gtk.Toolbar):
     }
 
     def __init__(self):
-        Gtk.Toolbar.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
         self._mount_added_hid = None
         self._mount_removed_hid = None
 
         button = JournalButton()
         button.connect('toggled', self._button_toggled_cb)
-        self.insert(button, 0)
+        self.append(button)
         button.show()
         self._volume_buttons = [button]
 
@@ -213,8 +213,7 @@ class VolumesToolbar(Gtk.Toolbar):
             button.connect('toggled', self._button_toggled_cb)
             button.show()
 
-            position = self.get_item_index(self._volume_buttons[-1]) + 1
-            self.insert(button, position)
+            self.append(button)
             self._volume_buttons.append(button)
             self.show()
 
@@ -234,15 +233,13 @@ class VolumesToolbar(Gtk.Toolbar):
 
         button = VolumeButton(mount)
         button.props.group = self._volume_buttons[0]
-        button.connect('toggled', self._button_toggled_cb)
         button.connect('volume-error', self.__volume_error_cb)
-        position = self.get_item_index(self._volume_buttons[-1]) + 1
-        self.insert(button, position)
+        self.append(button)
         button.show()
 
         self._volume_buttons.append(button)
 
-        if len(self.get_children()) > 1:
+        if len(self._volume_buttons) > 1:
             self.show()
 
     def __volume_error_cb(self, button, strerror, severity):
@@ -254,7 +251,7 @@ class VolumesToolbar(Gtk.Toolbar):
 
     def _get_button_for_mount(self, mount):
         mount_point = mount.get_root().get_path()
-        for button in self.get_children():
+        for button in self._volume_buttons:
             if button.mount_point == mount_point:
                 return button
         logging.error('Couldnt find button with mount_point %r', mount_point)
@@ -262,11 +259,14 @@ class VolumesToolbar(Gtk.Toolbar):
 
     def _remove_button(self, mount):
         button = self._get_button_for_mount(mount)
-        self._volume_buttons.remove(button)
-        self.remove(button)
-        self.get_children()[0].props.active = True
+        if button in self._volume_buttons:
+            self._volume_buttons.remove(button)
+            self.remove(button)
+        
+        if self._volume_buttons:
+            self._volume_buttons[0].props.active = True
 
-        if len(self.get_children()) < 2:
+        if len(self._volume_buttons) < 2:
             self.hide()
 
     def set_active_volume(self, mount):
@@ -284,11 +284,9 @@ class BaseButton(RadioToolButton):
         RadioToolButton.__init__(self)
 
         self.mount_point = mount_point
-
-        self.drag_dest_set(Gtk.DestDefaults.ALL,
-                           [Gtk.TargetEntry.new('journal-object-id', 0, 0)],
-                           Gdk.DragAction.COPY)
-        self.connect('drag-data-received', self._drag_data_received_cb)
+        # GTK4: DND API is entirely different and requires a DragSource/DropTarget
+        # Disabling legacy DND for now.
+        pass
 
     def _drag_data_received_cb(self, widget, drag_context, x, y,
                                selection_data, info, timestamp):
@@ -318,8 +316,7 @@ class VolumeButton(BaseButton):
         mount_point = mount.get_root().get_path()
         BaseButton.__init__(self, mount_point)
 
-        self.props.icon_name = get_mount_icon_name(mount,
-                                                   Gtk.IconSize.LARGE_TOOLBAR)
+        self.props.icon_name = get_mount_icon_name(mount)
         # TODO: retrieve the colors from the owner of the device
         self.props.xo_color = get_mount_color(self._mount)
 
@@ -355,12 +352,13 @@ class JournalButtonPalette(Palette):
         grid.show()
 
         self._progress_bar = Gtk.ProgressBar()
-        grid.add(self._progress_bar)
+        grid.attach(self._progress_bar, 0, 0, 1, 1)
         self._progress_bar.show()
 
         self._free_space_label = Gtk.Label()
-        self._free_space_label.set_alignment(0.5, 0.5)
-        grid.add(self._free_space_label)
+        self._free_space_label.set_xalign(0.5)
+        self._free_space_label.set_yalign(0.5)
+        grid.attach(self._free_space_label, 0, 1, 1, 1)
         self._free_space_label.show()
 
         self.connect('popup', self.__popup_cb)

@@ -76,7 +76,11 @@ class Language(SectionView):
             else:
                 self._country_dict[language].append([code, country])
 
-        self.set_border_width(style.DEFAULT_SPACING * 2)
+        self.set_margin_start(style.DEFAULT_SPACING * 2)
+        self.set_margin_end(style.DEFAULT_SPACING * 2)
+        self.set_margin_top(style.DEFAULT_SPACING * 2)
+        self.set_margin_bottom(style.DEFAULT_SPACING * 2)
+
         self.set_spacing(style.DEFAULT_SPACING)
 
         explanation = gettext.gettext('Add languages in the order you prefer.'
@@ -84,29 +88,34 @@ class Language(SectionView):
                                       ' the next in the list will be used.')
         self._text = Gtk.Label(label=explanation)
         self._text.set_line_wrap(True)
-        self._text.set_alignment(0, 0)
-        self.pack_start(self._text, False, False, 0)
-        self._text.show()
+        self._text.set_xalign(0.0)
+        self.append(self._text)
+        self._text.set_visible(True)
 
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        scrolled.show()
-        self.pack_start(scrolled, True, True, 0)
+        scrolled.set_visible(True)
+        self.append(scrolled)
 
-        self._table = Gtk.Table(rows=2, columns=4, homogeneous=False)
-        self._table.set_border_width(style.DEFAULT_SPACING * 2)
-        self._table.show()
-        scrolled.add_with_viewport(self._table)
+        self._grid = Gtk.Grid()
+        self._grid.set_column_homogeneous(False)
+        self._grid.set_margin_start(style.DEFAULT_SPACING * 2)
+        self._grid.set_margin_end(style.DEFAULT_SPACING * 2)
+        self._grid.set_margin_top(style.DEFAULT_SPACING * 2)
+        self._grid.set_margin_bottom(style.DEFAULT_SPACING * 2)
+        self._grid.set_visible(True)
+        scrolled.set_child(self._grid)
 
-        self._lang_alert_box = Gtk.HBox(spacing=style.DEFAULT_SPACING)
-        self.pack_start(self._lang_alert_box, False, True, 0)
+        self._lang_alert_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self._lang_alert_box.set_spacing(style.DEFAULT_SPACING)
+        self.append(self._lang_alert_box)
 
         self._lang_alert = InlineAlert()
-        self._lang_alert_box.pack_start(self._lang_alert, True, True, 0)
+        self._lang_alert_box.append(self._lang_alert)
         if 'lang' in self.restart_alerts:
             self._lang_alert.props.msg = self.restart_msg
-            self._lang_alert.show()
-        self._lang_alert_box.show()
+            self._lang_alert.set_visible(True)
+        self._lang_alert_box.set_visible(True)
 
         self.setup()
 
@@ -117,15 +126,10 @@ class Language(SectionView):
 
         self._selected_lang_count += 1
 
-        self._table.resize(self._selected_lang_count * 2, 3)
-
         label = Gtk.Label(label=str(self._selected_lang_count))
-        label.modify_fg(Gtk.StateType.NORMAL,
-                        style.COLOR_SELECTION_GREY.get_gdk_color())
         self._labels.append(label)
-        self._attach_to_table(label, 0, 1, self._selected_lang_count * 2 - 1,
-                              xpadding=1, ypadding=1)
-        label.show()
+        self._grid.attach(label, 0, self._selected_lang_count * 2 - 1, 1, 1)
+        label.set_visible(True)
 
         locale_language = None
         locale_country = None
@@ -183,22 +187,16 @@ class Language(SectionView):
                               ypadding=0)
 
         self._country_buttons.append(new_country_button)
-        self._attach_to_table(
-            new_country_button, 2, 3, self._selected_lang_count * 2 - 1,
-            yoptions=Gtk.AttachOptions.SHRINK)
+        self._grid.attach(new_country_button, 2, self._selected_lang_count * 2 - 1, 1, 1)
 
         self._country_widgets.append(new_country_widget)
-        self._attach_to_table(new_country_widget, 2, 3,
-                              self._selected_lang_count * 2,
-                              xpadding=style.DEFAULT_PADDING,
-                              ypadding=0)
+        self._grid.attach(new_country_widget, 2, self._selected_lang_count * 2, 1, 1)
 
         add_remove_box = self._create_add_remove_box()
         self._add_remove_boxes.append(add_remove_box)
-        self._attach_to_table(add_remove_box, 3, 4,
-                              self._selected_lang_count * 2 - 1)
+        self._grid.attach(add_remove_box, 3, self._selected_lang_count * 2 - 1, 1, 1)
 
-        add_remove_box.show_all()
+        add_remove_box.set_visible(True)
 
         if self._selected_lang_count > 1:
             previous_add_removes = self._add_remove_boxes[-2]
@@ -265,21 +263,20 @@ class Language(SectionView):
         # Remove language code associated with last row
         self._country_codes.pop()
 
-        self._table.resize(self._selected_lang_count * 2, 3)
-
         if self._selected_lang_count < 1:
             return
 
-        self._add_remove_boxes[-1].show_all()
+        self._add_remove_boxes[-1].set_visible(True)
 
         # Hide or show the Remove button in the new last row,
         # depending if it is the only language.
         add_remove_box = self._add_remove_boxes[-1]
-        add_button_, remove_button = add_remove_box.get_children()
+        add_button = add_remove_box.get_first_child()
+        remove_button = add_button.get_next_sibling()
         if self._selected_lang_count == 1:
-            remove_button.props.visible = False
+            remove_button.set_visible(False)
         else:
-            remove_button.props.visible = True
+            remove_button.set_visible(True)
 
     def setup(self):
         for locale in self._selected_locales:
@@ -291,29 +288,28 @@ class Language(SectionView):
 
     def undo(self):
         self._model.undo()
-        self._lang_alert.hide()
+        self._lang_alert.set_visible(False)
         self._delete_all_rows()
 
     def _create_add_remove_box(self):
-        """Creates Gtk.Hbox with add/remove buttons"""
+        """Creates Gtk.Box with add/remove buttons"""
         add_icon = Icon(icon_name='list-add')
 
         add_button = Gtk.Button()
-        add_button.set_image(add_icon)
+        add_button.set_child(add_icon)
         add_button.connect('clicked',
                            self.__add_button_clicked_cb)
 
         remove_icon = Icon(icon_name='list-remove')
         remove_button = Gtk.Button()
-        remove_button.set_image(remove_icon)
+        remove_button.set_child(remove_icon)
         remove_button.connect('clicked',
                               self.__remove_button_clicked_cb)
 
-        add_remove_box = Gtk.HButtonBox()
-        add_remove_box.set_layout(Gtk.ButtonBoxStyle.START)
+        add_remove_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         add_remove_box.set_spacing(10)
-        add_remove_box.pack_start(add_button, True, True, 0)
-        add_remove_box.pack_start(remove_button, True, True, 0)
+        add_remove_box.append(add_button)
+        add_remove_box.append(remove_button)
 
         return add_remove_box
 
@@ -416,53 +412,56 @@ class FilterToolItem(Gtk.ToolItem):
 
         grid = Gtk.Grid()
         grid.set_column_spacing(style.DEFAULT_SPACING)
-        self.add(grid)
-        grid.show()
+        self.set_child(grid)
+        grid.set_visible(True)
 
         self._primary_icon = Icon(icon_name=primary_icon)
         self._secondary_icon = Icon(icon_name=secondary_icon)
         self._button = Gtk.Button()
-        self._button.set_image(self._primary_icon)
-        self._primary_icon.show()
-        self._secondary_icon.show()
+        self._button.set_child(self._primary_icon)
+        self._primary_icon.set_visible(True)
+        self._secondary_icon.set_visible(True)
         grid.attach(self._button, 0, 0, 1, 1)
-        self._button.show()
+        self._button.set_visible(True)
         self._button.connect('clicked', self.button_cb)
 
-        event_box = Gtk.EventBox()
+        self._label_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         self._label_widget = Gtk.Label()
-        self._label_widget.set_alignment(0.0, 0.5)
+        self._label_widget.set_xalign(0.0)
+        self._label_widget.set_yalign(0.5)
         self._label_widget.set_use_markup(True)
         self.set_widget_label(default_label)
-        event_box.add(self._label_widget)
-        self._label_widget.show()
-        grid.attach(event_box, 1, 0, 1, 1)
-        event_box.show()
-        # Allow clicking on the label in addition to the button
-        event_box.set_events(Gdk.EventMask.TOUCH_MASK)
-        event_box.connect('touch-event', self._touch_event_cb)
+        self._label_box.append(self._label_widget)
+        self._label_widget.set_visible(True)
+        grid.attach(self._label_box, 1, 0, 1, 1)
+        self._label_box.set_visible(True)
+
+        # Allow clicking on the label box
+        gesture = Gtk.GestureClick()
+        gesture.connect('pressed', self.__label_pressed_cb)
+        self._label_box.add_controller(gesture)
+
+    def __label_pressed_cb(self, gesture, n_press, x, y):
+        self.button_cb()
 
     def set_widget(self, widget):
         self._widget.destroy()
         self._widget = widget
-        if self._visible:
-            self._widget.show()
-        else:
-            self._widget.hide()
+        self._widget.set_visible(self._visible)
 
     def is_visible(self):
         return self._visible
 
-    def _touch_event_cb(self, widget, event):
-        if event.type in [Gdk.EventType.TOUCH_BEGIN]:
-            self.button_cb(widget)
+    def _touch_event_cb(self, gesture, n_press, x, y):
+        # GTK4: GestureClick replaces touch-begin events
+        self.button_cb()
 
     def button_cb(self, widget=None):
         if self._visible:
-            self._widget.hide()
+            self._widget.set_visible(False)
             self._button.set_image(self._primary_icon)
         else:
-            self._widget.show()
+            self._widget.set_visible(True)
             self._button.set_image(self._secondary_icon)
         self._visible = not self._visible
 
@@ -478,26 +477,35 @@ class BlackLabel(PaletteMenuItem):
 
     def __init__(self, text_label=None):
         PaletteMenuItem.__init__(self, text_label=None, text_maxlen=0)
-
-        self.id_enter_notify_cb = self.connect('enter-notify-event',
-                                               self.__enter_notify_cb)
-        self.id_leave_notify_cb = self.connect('leave-notify-event',
-                                               self.__leave_notify_cb)
+        # GTK4: No enter/leave-notify-event; use EventControllerMotion
+        motion = Gtk.EventControllerMotion()
+        motion.connect('enter', self.__enter_notify_cb)
+        motion.connect('leave', self.__leave_notify_cb)
+        self.add_controller(motion)
         self.set_label(text_label)
 
+    def _apply_bg_css(self, color_html):
+        css = b'.black-label-item { background-color: %s; }' % \
+              color_html.encode()
+        provider = Gtk.CssProvider()
+        provider.load_from_data(css)
+        self.get_style_context().add_provider(
+            provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        self.add_css_class('black-label-item')
+
     def set_label(self, text_label):
+        if text_label is None:
+            return
         text_label = GLib.markup_escape_text(text_label)
         text = '<span foreground="%s">' % style.COLOR_BLACK.get_html() + \
             text_label + '</span>'
         self.label.set_markup(text)
 
-    def __enter_notify_cb(self, widget, event):
-        self.modify_bg(Gtk.StateType.NORMAL,
-                       style.COLOR_HIGHLIGHT.get_gdk_color())
+    def __enter_notify_cb(self, controller, x, y):
+        self._apply_bg_css(style.COLOR_HIGHLIGHT.get_html())
 
-    def __leave_notify_cb(self, widget, event):
-        self.modify_bg(Gtk.StateType.NORMAL,
-                       style.COLOR_WHITE.get_gdk_color())
+    def __leave_notify_cb(self, controller):
+        self._apply_bg_css(style.COLOR_WHITE.get_html())
 
 
 def set_palette_list(palette_list):
@@ -506,8 +514,13 @@ def set_palette_list(palette_list):
     item_width = req2.width
     item_height = req2.height + style.DEFAULT_PADDING
 
-    palette_width = int(Gdk.Screen.width() / 2)
-    palette_height = Gdk.Screen.height() - style.GRID_CELL_SIZE * 3
+    display = Gdk.Display.get_default()
+    monitors = display.get_monitors()
+    monitor = monitors.get_item(0)
+    geometry = monitor.get_geometry()
+    
+    palette_width = int(geometry.width / 2)
+    palette_height = geometry.height - style.GRID_CELL_SIZE * 3
 
     nx = min(3, int(palette_width / item_width))
     ny = min(8, int(palette_height / item_height), len(palette_list))
@@ -525,14 +538,14 @@ def set_palette_list(palette_list):
     grid = Gtk.Grid()
     grid.set_row_spacing(style.DEFAULT_PADDING)
     grid.set_column_spacing(0)
-    grid.set_border_width(0)
+    # GTK4: set_border_width removed
 
     scrolled_window = Gtk.ScrolledWindow()
     scrolled_window.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
     scrolled_window.set_size_request(nx * item_width, ny * item_height)
-    scrolled_window.set_shadow_type(Gtk.ShadowType.ETCHED_IN)
-    scrolled_window.add_with_viewport(grid)
-    grid.show()
+    scrolled_window.set_has_frame(True)  # GTK4: replaces set_shadow_type
+    scrolled_window.set_child(grid)  # GTK4: replaces add_with_viewport
+    grid.set_visible(True)
 
     x = 0
     y = 0
@@ -540,13 +553,16 @@ def set_palette_list(palette_list):
     for item in palette_list:
         menu_item = BlackLabel(item['label'])
 
-        menu_item.connect('button-release-event', item['callback'], item)
+        # GTK4: button-release-event → GestureClick
+        gesture = Gtk.GestureClick()
+        gesture.connect('released', item['callback'], item)
+        menu_item.add_controller(gesture)
         grid.attach(menu_item, x, y, 1, 1)
         x += 1
         if x == nx:
             x = 0
             y += 1
 
-        menu_item.show()
+        menu_item.set_visible(True)
 
     return scrolled_window

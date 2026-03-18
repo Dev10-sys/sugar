@@ -78,12 +78,12 @@ class DeviceView(TrayIcon):
         self._update_output_info(value)
 
 
-class BrightnessManagerWidget(Gtk.VBox):
+class BrightnessManagerWidget(Gtk.Box):
 
     TIMEOUT_DELAY = 10
 
     def __init__(self, text, icon_name):
-        Gtk.VBox.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
         self._progress_bar = None
         self._adjustment = None
 
@@ -91,27 +91,26 @@ class BrightnessManagerWidget(Gtk.VBox):
         icon.props.icon_name = icon_name
         icon.props.xo_color = XoColor('%s,%s' % (style.COLOR_WHITE.get_svg(),
                                       style.COLOR_BUTTON_GREY.get_svg()))
-        icon.show()
+        icon.set_visible(True)
 
-        label = Gtk.Label(text)
-        label.show()
+        label = Gtk.Label(label=text)
+        label.set_visible(True)
 
         grid = Gtk.Grid()
         grid.set_column_spacing(style.DEFAULT_SPACING)
         grid.attach(icon, 0, 0, 1, 1)
         grid.attach(label, 1, 0, 1, 1)
-        grid.show()
+        grid.set_visible(True)
 
-        alignment = Gtk.Alignment()
-        alignment.set(0.5, 0, 0, 0)
-        alignment.add(grid)
-        alignment.show()
-        self.add(alignment)
+        grid.set_halign(Gtk.Align.CENTER)
+        grid.set_valign(Gtk.Align.START)
+        self.append(grid)
 
-        alignment = Gtk.Alignment()
-        alignment.set(0.5, 0, 0, 0)
-        alignment.set_padding(0, 0, style.DEFAULT_SPACING,
-                              style.DEFAULT_SPACING)
+        hscale_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        hscale_box.set_halign(Gtk.Align.CENTER)
+        hscale_box.set_valign(Gtk.Align.START)
+        hscale_box.set_margin_start(style.DEFAULT_SPACING)
+        hscale_box.set_margin_end(style.DEFAULT_SPACING)
 
         self._model = brightness.get_instance()
         self._model_changed_hid = \
@@ -132,23 +131,23 @@ class BrightnessManagerWidget(Gtk.VBox):
             self._adjustment_hid = \
                 self._adjustment.connect('value-changed', self.__adjusted_cb)
 
-            hscale = Gtk.HScale()
+            hscale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
             hscale.props.draw_value = False
             hscale.set_adjustment(adjustment)
             hscale.set_digits(0)
             hscale.set_size_request(style.GRID_CELL_SIZE * 4, -1)
-            alignment.add(hscale)
-            hscale.show()
+            hscale_box.append(hscale)
+            hscale.set_visible(True)
         else:
             self._progress_bar = Gtk.ProgressBar()
             self._progress_bar.set_size_request(
                 style.zoom(style.GRID_CELL_SIZE * 4), -1)
-            alignment.props.top_padding = style.DEFAULT_PADDING
-            alignment.add(self._progress_bar)
-            self._progress_bar.show()
+            hscale_box.set_margin_top(style.DEFAULT_PADDING)
+            hscale_box.append(self._progress_bar)
+            self._progress_bar.set_visible(True)
 
-        alignment.show()
-        self.add(alignment)
+        hscale_box.set_visible(True)
+        self.append(hscale_box)
 
     def __brightness_changed_cb(self, model, value):
         self.update(value)
@@ -188,9 +187,9 @@ class DisplayPalette(Palette):
         icon = Icon(icon_name='camera-external',
                     pixel_size=style.SMALL_ICON_SIZE)
         self._screenshot.set_image(icon)
-        icon.show()
+        icon.set_visible(True)
         self._screenshot.connect('activate', self.__screenshot_cb)
-        self._screenshot.show()
+        self._screenshot.set_visible(True)
 
         self._box = PaletteMenuBox()
 
@@ -199,8 +198,8 @@ class DisplayPalette(Palette):
         if brightness.get_instance().get_path():
             self._add_brightness_manager()
 
-        self._box.append_item(self._screenshot, 0, 0)
-        self._box.show()
+        self._box.append_item(self._screenshot)
+        self._box.set_visible(True)
 
         self.set_content(self._box)
         self.connect('popup', self.__popup_cb)
@@ -208,13 +207,13 @@ class DisplayPalette(Palette):
     def _add_brightness_manager(self):
         self._brightness_manager = BrightnessManagerWidget(_('Brightness'),
                                                            'brightness-100')
-        self._brightness_manager.show()
+        self._brightness_manager.set_visible(True)
 
         separator = PaletteMenuItemSeparator()
-        separator.show()
+        separator.set_visible(True)
 
-        self._box.append_item(self._brightness_manager, 0, 0)
-        self._box.append_item(separator, 0, 0)
+        self._box.append_item(self._brightness_manager)
+        self._box.append_item(separator)
 
     def __popup_cb(self, palette):
         if self._brightness_manager is not None:

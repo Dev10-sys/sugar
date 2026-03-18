@@ -39,20 +39,27 @@ class GestureHandler(object):
         self._gesture_grabber = SugarExt.GestureGrabber()
         self._controller = []
 
-        screen = Gdk.Screen.get_default()
-        screen.connect('size-changed', self.__size_changed_cb)
+        # GTK4: Use Display/Monitor API instead of Gdk.Screen
+        display = Gdk.Display.get_default()
+        monitor = display.get_monitors().get_item(0)
+        monitor.connect('notify::geometry', self.__geometry_changed_cb)
 
         self._add_controller()
 
-    def __size_changed_cb(self, screen):
+    def __geometry_changed_cb(self, monitor, pspec):
         self._add_controller()
 
     def _add_controller(self):
         for controller in self._controller:
             self._gesture_grabber.remove(controller)
 
+        # GTK4: Use monitor geometry instead of Gdk.Screen.width()
+        display = Gdk.Display.get_default()
+        monitor = display.get_monitors().get_item(0)
+        geometry = monitor.get_geometry()
+
         self._track_gesture_for_area(SugarGestures.SwipeDirectionFlags.DOWN,
-                                     0, 0, Gdk.Screen.width(),
+                                     0, 0, geometry.width,
                                      style.GRID_CELL_SIZE)
 
     def _track_gesture_for_area(self, directions, x, y, width, height):

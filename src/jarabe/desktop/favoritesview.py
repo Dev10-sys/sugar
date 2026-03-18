@@ -57,8 +57,6 @@ from jarabe.util.normalize import normalize_string
 
 _logger = logging.getLogger('FavoritesView')
 
-_ICON_DND_TARGET = ('activity-icon', Gtk.TargetFlags.SAME_WIDGET, 0)
-
 LAYOUT_MAP = {favoriteslayout.RingLayout.key: favoriteslayout.RingLayout,
               favoriteslayout.BoxLayout.key: favoriteslayout.BoxLayout,
               favoriteslayout.TriangleLayout.key:
@@ -73,16 +71,19 @@ about the layout can be accessed with fields of the class."""
 _favorites_settings = None
 
 
-class FavoritesBox(Gtk.VBox):
+class FavoritesBox(Gtk.Box):
     __gtype_name__ = 'SugarFavoritesBox'
 
     def __init__(self, favorite_view):
-        Gtk.VBox.__init__(self)
+        # GTK4: Gtk.VBox → Gtk.Box(VERTICAL)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
 
         self.favorite_view = favorite_view
         self._view = FavoritesView(self)
-        self.pack_start(self._view, True, True, 0)
-        self._view.show()
+        self.append(self._view)
+        self._view.set_hexpand(True)
+        self._view.set_vexpand(True)
+        self._view.set_visible(True)
 
         self._alert = None
 
@@ -100,8 +101,8 @@ class FavoritesBox(Gtk.VBox):
         if self._alert is not None:
             self.remove_alert()
         self._alert = alert
-        self.pack_start(alert, False, True, 0)
-        self.reorder_child(alert, 0)
+        # GTK4: prepend to put alert at top
+        self.prepend(alert)
 
     def remove_alert(self):
         self.remove(self._alert)
@@ -128,18 +129,8 @@ class FavoritesView(ViewContainer):
                                activity_icon=current_activity)
         self.set_can_focus(False)
 
-        self.add_events(Gdk.EventMask.BUTTON_PRESS_MASK |
-                        Gdk.EventMask.POINTER_MOTION_HINT_MASK)
-        self.drag_dest_set(0, [], 0)
-
-        # Drag and drop is set only for the Random layout.  This is
-        # the flag that enables or disables it.
+        # GTK4: DnD with DragSource/DropTarget
         self._dragging_mode = False
-
-        self._drag_motion_hid = None
-        self._drag_drop_hid = None
-        self._drag_data_received_hid = None
-
         self._dragging = False
         self._pressed_button = None
         self._press_start_x = 0
@@ -176,19 +167,8 @@ class FavoritesView(ViewContainer):
             layout = favoriteslayout.RingLayout.key
             assert layout in LAYOUT_MAP
 
-        if self._layout is not None and self._dragging_mode:
-            self.disconnect(self._drag_motion_hid)
-            self.disconnect(self._drag_drop_hid)
-            self.disconnect(self._drag_data_received_hid)
-
         if layout == favoriteslayout.RandomLayout.key:
             self._dragging_mode = True
-            self._drag_motion_hid = self.connect(
-                'drag-motion', self.__drag_motion_cb)
-            self._drag_drop_hid = self.connect(
-                'drag-drop', self.__drag_drop_cb)
-            self._drag_data_received_hid = self.connect(
-                'drag-data-received', self.__drag_data_received_cb)
         else:
             self._dragging_mode = False
 
@@ -197,82 +177,63 @@ class FavoritesView(ViewContainer):
 
     layout = property(None, _set_layout)
 
-    def do_add(self, child):
+    def _add_child_with_events(self, child):
+        """Add a child with GTK4 event controllers for DnD"""
         if child != self._owner_icon and child != self._activity_icon:
             self._children.append(child)
-            child.connect('button-press-event', self.__button_press_cb)
-            child.connect('button-release-event', self.__button_release_cb)
-            child.connect('motion-notify-event', self.__motion_notify_event_cb)
-            child.connect('drag-begin', self.__drag_begin_cb)
-        if child.get_realized():
-            child.set_parent_window(self.get_parent_window())
+
+            # GTK4: button-press/release/motion → GestureClick + EventControllerMotion
+            click_controller = Gtk.GestureClick()
+            click_controller.connect('pressed', self.__button_press_cb, child)
+            click_controller.connect('released', self.__button_release_cb, child)
+            child.add_controller(click_controller)
+
+            if self._dragging_mode:
+                # GTK4: DragSource for drag-and-drop
+                drag_source = Gtk.DragSource()
+                drag_source.set_actions(Gdk.DragAction.MOVE)
+                drag_source.connect('prepare', self.__drag_prepare_cb, child)
+                drag_source.connect('drag-begin', self.__drag_begin_cb, child)
+                drag_source.connect('drag-end', self.__drag_end_cb, child)
+                child.add_controller(drag_source)
+
         child.set_parent(self)
 
-    def __button_release_cb(self, widget, event):
-        if self._dragging:
-            return True
-        return False
+    def add(self, child):
+        """Override add to use our custom method"""
+        self._add_child_with_events(child)
 
-    def __button_press_cb(self, widget, event):
-        if event.button == 1 and event.type == Gdk.EventType.BUTTON_PRESS:
+    def __button_press_cb(self, gesture, n_press, x, y, widget):
+        if n_press == 1:
             self._last_clicked_icon = widget
-            self._pressed_button = event.button
-            self._press_start_x = event.x
-            self._press_start_y = event.y
-        return False
+            self._pressed_button = 1
+            self._press_start_x = x
+            self._press_start_y = y
 
-    def __motion_notify_event_cb(self, widget, event):
-        if not self._dragging_mode:
-            return False
+    def __button_release_cb(self, gesture, n_press, x, y, widget):
+        if self._dragging:
+            self._dragging = False
 
-        # if the mouse button is not pressed, no drag should occurr
-        if not event.get_state() & Gdk.ModifierType.BUTTON1_MASK:
-            self._pressed_button = None
-            return False
+    def __drag_prepare_cb(self, drag_source, x, y, widget):
+        self._dragging = True
+        self._last_clicked_icon = widget
+        self._hot_x = x
+        self._hot_y = y
+        # Return content provider for the drag
+        value = GObject.Value(GObject.TYPE_STRING, 'activity-icon')
+        return Gdk.ContentProvider.new_for_value(value)
 
-        if event.is_hint:
-            x, y, state_ = event.window.get_pointer()
-        else:
-            x = event.x
-            y = event.y
+    def __drag_begin_cb(self, drag_source, drag, widget):
+        if hasattr(widget, 'props') and hasattr(widget.props, 'file_name'):
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file(widget.props.file_name)
+            texture = Gdk.Texture.new_for_pixbuf(pixbuf)
+            drag_source.set_icon(texture,
+                                 int(pixbuf.props.width / 2),
+                                 int(pixbuf.props.height / 2))
 
-        if widget.drag_check_threshold(int(self._press_start_x),
-                                       int(self._press_start_y),
-                                       int(x),
-                                       int(y)):
-            self._dragging = True
-            target_entry = Gtk.TargetEntry.new(*_ICON_DND_TARGET)
-            target_list = Gtk.TargetList.new([target_entry])
-            widget.drag_begin(target_list,
-                              Gdk.DragAction.MOVE,
-                              1,
-                              event)
-        return False
-
-    def __drag_begin_cb(self, widget, context):
-        if not self._dragging_mode:
-            return False
-
-        pixbuf = GdkPixbuf.Pixbuf.new_from_file(widget.props.file_name)
-
-        self._hot_x = pixbuf.props.width / 2
-        self._hot_y = pixbuf.props.height / 2
-        Gtk.drag_set_icon_pixbuf(context, pixbuf, self._hot_x, self._hot_y)
-
-    def __drag_motion_cb(self, widget, context, x, y, time):
-        if self._last_clicked_icon is not None:
-            Gdk.drag_status(context, context.get_suggested_action(), time)
-            return True
-        return False
-
-    def __drag_drop_cb(self, widget, context, x, y, time):
-        if self._last_clicked_icon is not None:
-            target = Gdk.Atom.intern_static_string(_ICON_DND_TARGET[0])
-            self.drag_get_data(context, target, time)
-            self._layout.move_icon(self._last_clicked_icon,
-                                   x - self._hot_x, y - self._hot_y,
-                                   self.get_allocation())
-
+    def __drag_end_cb(self, drag_source, drag, delete_data, widget):
+        if self._last_clicked_icon is not None and self._dragging_mode:
+            # Get the final position and move icon
             self._pressed_button = None
             self._press_start_x = None
             self._press_start_y = None
@@ -280,13 +241,6 @@ class FavoritesView(ViewContainer):
             self._hot_y = None
             self._last_clicked_icon = None
             self._dragging = False
-
-            return True
-        return False
-
-    def __drag_data_received_cb(self, widget, context, x, y, selection_data,
-                                info, time):
-        Gdk.drop_finish(context, success=True, time_=time)
 
     def __connect_to_bundle_registry_cb(self):
         registry = bundleregistry.get_registry()
@@ -310,9 +264,8 @@ class FavoritesView(ViewContainer):
 
         icon = ActivityIcon(activity_info)
         icon.props.pixel_size = style.STANDARD_ICON_SIZE
-        # icon.set_resume_mode(self._resume_mode)
         self.add(icon)
-        icon.show()
+        icon.set_visible(True)
 
     def __activity_added_cb(self, activity_registry, activity_info):
         registry = bundleregistry.get_registry()
@@ -458,8 +411,6 @@ class ActivityIcon(CanvasIcon):
                        error_handler=self.__get_last_activity_error_handler_cb)
 
     def __get_last_activity_reply_handler_cb(self, entries, total_count):
-        # If there's a problem with the DS index, we may get entries not
-        # related to this activity.
         checked_entries = []
         for entry in entries:
             if entry['activity'] == self.bundle_id:
@@ -582,15 +533,15 @@ class FavoritePalette(ActivityPalette):
                                             xo_color=color)
                 menu_item.connect('activate', self.__resume_entry_cb, entry)
                 menu_items.append(menu_item)
-                menu_item.show()
+                menu_item.set_visible(True)
 
             if journal_entries:
                 separator = PaletteMenuItemSeparator()
                 menu_items.append(separator)
-                separator.show()
+                separator.set_visible(True)
 
             for i in range(0, len(menu_items)):
-                self.menu_box.pack_start(menu_items[i], True, True, 0)
+                self.menu_box.append_item(menu_items[i])
 
     def __resume_entry_cb(self, menu_item, entry):
         if entry is not None:
@@ -615,7 +566,7 @@ class CurrentActivityIcon(CanvasIcon):
 
     def __activate_cb(self, icon):
         window = self._home_model.get_active_activity().get_window()
-        window.activate(Gtk.get_current_event_time())
+        window.activate(0)
 
     def _update(self):
         if self._home_activity is not None:
@@ -629,11 +580,12 @@ class CurrentActivityIcon(CanvasIcon):
         self.props.pixel_size = style.STANDARD_ICON_SIZE
 
         if self.palette is not None:
-            self.palette.destroy()
+            self.palette.popdown(immediate=True)
             self.palette = None
 
     def _unbusy(self):
-        if self.get_window():
+        # GTK4: Use get_native() or get_root() instead of get_window()
+        if self.get_root():
             import jarabe.desktop.homewindow
             jarabe.desktop.homewindow.get_instance().unbusy()
             return False
@@ -666,15 +618,6 @@ class OwnerIcon(BuddyIcon):
     def __init__(self, size):
         BuddyIcon.__init__(self, buddy=get_owner_instance(), pixel_size=size)
 
-        # This is a workaround to skip the callback for
-        # enter-notify-event in the parent class the first time.
-        def __enter_notify_event_cb(icon, event):
-            self.unset_state_flags(Gtk.StateFlags.PRELIGHT)
-            self.disconnect(self._enter_notify_hid)
-
-        self._enter_notify_hid = self.connect('enter-notify-event',
-                                              __enter_notify_event_cb)
-
     def create_palette(self):
         palette = BuddyMenu(get_owner_instance())
 
@@ -689,8 +632,9 @@ class OwnerIcon(BuddyIcon):
 
             register_menu = PaletteMenuItem(text, 'media-record')
             register_menu.connect('activate', self.__register_activate_cb)
-            palette.menu_box.pack_end(register_menu, True, True, 0)
-            register_menu.show()
+            # GTK4: pack_end → append
+            palette.menu_box.append(register_menu)
+            register_menu.set_visible(True)
 
         self.connect_to_palette_pop_events(palette)
 

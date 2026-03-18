@@ -16,6 +16,7 @@
 import os
 
 from gi.repository import Gtk
+from gi.repository import GLib
 from dbus.mainloop.glib import DBusGMainLoop
 DBusGMainLoop(set_as_default=True)
 
@@ -56,4 +57,5 @@ os.environ["SUGAR_MIME_DEFAULTS"] = \
 palette = ActivityListPalette(MockActivityInfo())
 palette.popup()
 
-Gtk.main()
+loop = GLib.MainLoop()
+loop.run()

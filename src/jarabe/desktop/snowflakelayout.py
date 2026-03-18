@@ -25,40 +25,20 @@ _BASE_DISTANCE = style.zoom(25)
 _CHILDREN_FACTOR = style.zoom(3)
 
 
-class SnowflakeLayout(Gtk.Container):
+class SnowflakeLayout(Gtk.Widget):
     __gtype_name__ = 'SugarSnowflakeLayout'
 
     def __init__(self):
-        Gtk.Container.__init__(self)
-        self.set_has_window(False)
+        Gtk.Widget.__init__(self)
         self._nflakes = 0
         self._children = {}
-
-    def do_realize(self):
-        self.set_realized(True)
-        self.set_window(self.get_parent_window())
-        for child in list(self._children.keys()):
-            child.set_parent_window(self.get_parent_window())
-        self.queue_resize()
-
-    def do_add(self, child):
-        if child.get_realized():
-            child.set_parent_window(self.get_parent_window())
-        child.set_parent(self)
-
-    def do_forall(self, include_internals, callback):
-        for child in list(self._children.keys()):
-            callback(child)
-
-    def do_remove(self, child):
-        child.unparent()
 
     def add_icon(self, child, center=False):
         if not center:
             self._nflakes += 1
 
         self._children[child] = center
-        self.add(child)
+        child.set_parent(self)
 
     def remove(self, child):
         if child not in self._children:
@@ -68,44 +48,31 @@ class SnowflakeLayout(Gtk.Container):
             self._nflakes -= 1
 
         del self._children[child]
-        self.remove(child)
+        child.unparent()
 
-    def do_get_preferred_size(self):
+    def do_measure(self, orientation, for_size):
         size = self._calculate_size()
-        requisition = Gtk.Requisition()
-        requisition.width = size
-        requisition.height = size
-        return (requisition, requisition)
+        return (size, size, -1, -1)
 
-    def do_get_preferred_width(self):
-        size = self._calculate_size()
-        return (size, size)
-
-    def do_get_preferred_height(self):
-        size = self._calculate_size()
-        return (size, size)
-
-    def do_size_allocate(self, allocation):
-        self.set_allocation(allocation)
-
+    def do_size_allocate(self, width, height, baseline):
         r = self._get_radius()
         index = 0
 
         for child, centered in list(self._children.items()):
-            child_request = child.size_request()
-            child_width, child_height = \
-                child_request.width, child_request.height
+            _, child_width, _, _ = child.measure(Gtk.Orientation.HORIZONTAL, -1)
+            _, child_height, _, _ = child.measure(Gtk.Orientation.VERTICAL, -1)
+            
             rect = Gdk.Rectangle()
             rect.x = 0
             rect.y = 0
             rect.width = child_width
             rect.height = child_height
 
-            width = allocation.width - child_width
-            height = allocation.height - child_height
+            x_off = width - child_width
+            y_off = height - child_height
             if centered:
-                rect.x = allocation.x + width / 2
-                rect.y = allocation.y + height / 2
+                rect.x = x_off / 2
+                rect.y = y_off / 2
             else:
                 angle = 2 * math.pi * index / self._nflakes
 
@@ -115,30 +82,32 @@ class SnowflakeLayout(Gtk.Container):
                 dx = math.cos(angle) * r
                 dy = math.sin(angle) * r
 
-                rect.x = int(allocation.x + width / 2 + dx)
-                rect.y = int(allocation.y + height / 2 + dy)
+                rect.x = int(x_off / 2 + dx)
+                rect.y = int(y_off / 2 + dy)
 
                 index += 1
 
-            child.size_allocate(rect)
+            child.size_allocate(rect, -1)
+
+    def do_snapshot(self, snapshot):
+        for child in self._children:
+            self.snapshot_child(child, snapshot)
 
     def _get_radius(self):
         radius = int(_BASE_DISTANCE + _CHILDREN_FACTOR * self._nflakes)
         for child, centered in list(self._children.items()):
             if centered:
-                child_request = child.size_request()
-                child_width, child_height = \
-                    child_request.width, child_request.height
-                radius += max(child_width, child_height) / 2
+                _, w, _, _ = child.measure(Gtk.Orientation.HORIZONTAL, -1)
+                _, h, _, _ = child.measure(Gtk.Orientation.VERTICAL, -1)
+                radius += max(w, h) / 2
 
         return radius
 
     def _calculate_size(self):
         thickness = 0
         for child in list(self._children.keys()):
-            child_request = child.size_request()
-            child_width, child_height = \
-                child_request.width, child_request.height
-            thickness = max(thickness, max(child_width, child_height))
+            _, w, _, _ = child.measure(Gtk.Orientation.HORIZONTAL, -1)
+            _, h, _, _ = child.measure(Gtk.Orientation.VERTICAL, -1)
+            thickness = max(thickness, max(w, h))
 
         return self._get_radius() * 2 + thickness

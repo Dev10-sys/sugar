@@ -21,6 +21,7 @@ from gi.repository import Gtk
 from gi.repository import Gdk
 from gi.repository import GdkPixbuf
 from gi.repository import Gio
+from gi.repository import Graphene
 
 BACKGROUND_DIR = 'org.sugarlabs.user.background'
 BACKGROUND_IMAGE_PATH_KEY = 'image-path'
@@ -53,32 +54,45 @@ def get_background_alpha_level():
     return alpha
 
 
-class HomeBackgroundBox(Gtk.VBox):
+class HomeBackgroundBox(Gtk.Box):
 
     def __init__(self):
-        Gtk.VBox.__init__(self)
+        # GTK4: Gtk.VBox → Gtk.Box(VERTICAL)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
         self._background_pixbuf = None
+        self._background_texture = None
         self._update_background_image()
-        self.connect('draw', self.__draw_cb)
 
         self._settings = Gio.Settings.new(BACKGROUND_DIR)
         self._settings.connect('changed', self.__conf_changed_cb, None)
 
-    def __draw_cb(self, widget, context):
-        if self._background_pixbuf is None:
-            return
+    def do_snapshot(self, snapshot):
+        """GTK4: Replace do_draw with do_snapshot"""
+        if self._background_pixbuf is not None:
+            width = self.get_width()
+            height = self.get_height()
 
-        alloc = widget.get_allocation()
+            if width > 0 and height > 0:
+                if self._background_pixbuf.get_width() != width or \
+                        self._background_pixbuf.get_height() != height:
+                    scaled = self._background_pixbuf.scale_simple(
+                        width, height, GdkPixbuf.InterpType.TILES)
+                else:
+                    scaled = self._background_pixbuf
 
-        if self._background_pixbuf.get_width() != alloc.width or \
-                self._background_pixbuf.get_height() != alloc.height:
-            self._background_pixbuf = self._background_pixbuf.scale_simple(
-                alloc.width,
-                alloc.height,
-                GdkPixbuf.InterpType.TILES)
-        Gdk.cairo_set_source_pixbuf(context, self._background_pixbuf, 0, 0)
-        alpha = get_background_alpha_level()
-        context.paint_with_alpha(alpha)
+                # Create texture from pixbuf
+                texture = Gdk.Texture.new_for_pixbuf(scaled)
+                alpha = get_background_alpha_level()
+
+                rect = Graphene.Rect.alloc()
+                rect.init(0, 0, width, height)
+
+                snapshot.push_opacity(alpha)
+                snapshot.append_texture(texture, rect)
+                snapshot.pop()
+
+        # Chain up to draw children
+        Gtk.Box.do_snapshot(self, snapshot)
 
     def __conf_changed_cb(self, settings, key, data):
         self._update_background_image()

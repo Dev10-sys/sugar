@@ -54,12 +54,12 @@ class ClipboardMenu(Palette):
                                      'list-remove')
         self._remove_item.connect('activate', self._remove_item_activate_cb)
         self.menu.append(self._remove_item)
-        self._remove_item.show()
+        self._remove_item.set_visible(True)
 
         self._open_item = MenuItem(_('Open'), 'zoom-activity')
         self._open_item.connect('activate', self._open_item_activate_cb)
         self.menu.append(self._open_item)
-        self._open_item.show()
+        self._open_item.set_visible(True)
 
         self._journal_item = MenuItem(_('Keep'))
         color = profile.get_color()
@@ -70,7 +70,7 @@ class ClipboardMenu(Palette):
 
         self._journal_item.connect('activate', self._journal_item_activate_cb)
         self.menu.append(self._journal_item)
-        self._journal_item.show()
+        self._journal_item.set_visible(True)
 
         self._update()
 
@@ -80,19 +80,30 @@ class ClipboardMenu(Palette):
         child = self._open_item.get_child()
         if activities is None or len(activities) <= 1:
             child.set_text(_('Open'))
-            if self._open_item.get_submenu() is not None:
+            # GTK4: Gtk.Menu is removed; use Gtk.PopoverMenu instead
+            if hasattr(self._open_item, 'get_submenu') and \
+                    self._open_item.get_submenu() is not None:
                 self._open_item.set_submenu(None)
             return
 
         child.set_text(_('Open with'))
-        submenu = self._open_item.get_submenu()
+        # GTK4: Use PopoverMenu or rebuild menu items
+        submenu = None
+        if hasattr(self._open_item, 'get_submenu'):
+            submenu = self._open_item.get_submenu()
+
         if submenu is None:
-            submenu = Gtk.Menu()
-            self._open_item.set_submenu(submenu)
-            submenu.show()
+            submenu = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            if hasattr(self._open_item, 'set_submenu'):
+                self._open_item.set_submenu(submenu)
+            submenu.set_visible(True)
         else:
-            for item in submenu.get_children():
-                submenu.remove(item)
+            # Clear existing children
+            child_widget = submenu.get_first_child()
+            while child_widget is not None:
+                next_widget = child_widget.get_next_sibling()
+                submenu.remove(child_widget)
+                child_widget = next_widget
 
         for service_name in activities:
             registry = bundleregistry.get_registry()
@@ -101,11 +112,11 @@ class ClipboardMenu(Palette):
             if not activity_info:
                 logging.warning('Activity %s is unknown.', service_name)
 
-            item = Gtk.MenuItem(activity_info.get_name())
+            item = MenuItem(activity_info.get_name())
             item.connect('activate', self._open_submenu_item_activate_cb,
                          service_name)
             submenu.append(item)
-            item.show()
+            item.set_visible(True)
 
     def _update_items_visibility(self):
         activities = self._get_activities()
@@ -152,7 +163,11 @@ class ClipboardMenu(Palette):
     def _open_item_activate_cb(self, menu_item):
         logging.debug('_open_item_activate_cb')
         percent = self._cb_object.get_percent()
-        if percent < 100 or menu_item.get_submenu() is not None:
+        if percent < 100:
+            return
+        # GTK4: Check submenu differently
+        if hasattr(menu_item, 'get_submenu') and \
+                menu_item.get_submenu() is not None:
             return
         jobject = self._copy_to_journal()
         misc.resume(jobject.metadata, self._get_activities()[0])

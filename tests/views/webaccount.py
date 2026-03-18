@@ -17,6 +17,7 @@ import os
 import sys
 
 from gi.repository import Gtk
+from gi.repository import GLib
 
 from jarabe import config
 from jarabe.webservice.account import Account
@@ -32,15 +33,16 @@ config.ext_path = extension_dir
 sys.path.append(config.ext_path)
 
 window = Gtk.Window()
-box = Gtk.HBox()
-box.show()
-window.add(box)
+box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+box.set_visible(True)
+window.set_child(box)
 
 services = accountsmanager.get_webaccount_services()
 for service in services:
     if service.get_icon_name() == ACCOUNT_NAME:
         service.config_service_cb(None, None, box)
 
-window.show()
+window.present()
 
-Gtk.main()
+loop = GLib.MainLoop()
+loop.run()

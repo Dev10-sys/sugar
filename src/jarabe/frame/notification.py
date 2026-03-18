@@ -21,6 +21,7 @@ from gi.repository import GObject
 from gi.repository import GLib
 from gi.repository import Gtk
 from gi.repository import Gdk
+from gi.repository import Graphene
 
 from sugar3 import profile
 from sugar3.graphics import style
@@ -37,35 +38,36 @@ from jarabe.view.pulsingicon import PulsingIcon
 from jarabe.frame.frameinvoker import FrameWidgetInvoker
 
 
-class NotificationBox(Gtk.VBox):
+class NotificationBox(Gtk.Box):
 
     LINES = 3
     MAX_ENTRIES = 3
     ELLIPSIS_AND_BREAKS = 6
 
     def __init__(self, name):
-        Gtk.VBox.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
         self._name = name
 
-        self._notifications_box = Gtk.VBox()
-        self._notifications_box.show()
+        self._notifications_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL)
+        self._notifications_box.set_visible(True)
 
         self._scrolled_window = Gtk.ScrolledWindow()
-        self._scrolled_window.add_with_viewport(self._notifications_box)
+        self._scrolled_window.set_child(self._notifications_box)
         self._scrolled_window.set_policy(Gtk.PolicyType.NEVER,
                                          Gtk.PolicyType.AUTOMATIC)
-        self._scrolled_window.show()
+        self._scrolled_window.set_visible(True)
 
         separator = PaletteMenuItemSeparator()
-        separator.show()
+        separator.set_visible(True)
 
         clear_item = PaletteMenuItem(_('Clear notifications'), 'dialog-cancel')
         clear_item.connect('activate', self.__clear_cb)
-        clear_item.show()
+        clear_item.set_visible(True)
 
-        self.add(self._scrolled_window)
-        self.add(separator)
-        self.add(clear_item)
+        self.append(self._scrolled_window)
+        self.append(separator)
+        self.append(clear_item)
 
         self._service = notifications.get_service()
         entries = self._service.retrieve_by_name(self._name)
@@ -80,42 +82,48 @@ class NotificationBox(Gtk.VBox):
         self.connect('destroy', self.__destroy_cb)
 
     def _update_scrolled_size(self):
-        entries = self._notifications_box.get_children()
+        # GTK4: iterate children manually
+        children = []
+        child = self._notifications_box.get_first_child()
+        while child is not None:
+            children.append(child)
+            child = child.get_next_sibling()
 
         height = 0
-        for entry in entries[:self.MAX_ENTRIES]:
-            requests = entry.get_preferred_size()
-            height += requests[1].height
+        for entry in children[:self.MAX_ENTRIES]:
+            _min_size, natural_size = entry.get_preferred_size()
+            height += natural_size.height
 
         self._scrolled_window.set_size_request(-1, height)
 
     def _add(self, summary, body):
         icon = Icon()
         icon.props.icon_name = 'emblem-notification'
-        icon.props.icon_size = Gtk.IconSize.SMALL_TOOLBAR
+        icon.props.pixel_size = style.SMALL_ICON_SIZE
         icon.props.xo_color = \
             XoColor('%s,%s' % (style.COLOR_WHITE.get_svg(),
                                style.COLOR_BLACK.get_svg()))
-        icon.show()
+        icon.set_visible(True)
 
         summary_label = Gtk.Label()
         summary_label.set_max_width_chars(style.MENU_WIDTH_CHARS)
         summary_label.set_ellipsize(style.ELLIPSIZE_MODE_DEFAULT)
-        summary_label.set_alignment(0, 0.5)
+        summary_label.set_xalign(0)
+        summary_label.set_yalign(0.5)
         summary_label.set_markup('<b>%s</b>' % summary)
-        summary_label.show()
+        summary_label.set_visible(True)
 
         body_label = Gtk.Label()
-        body_label.set_alignment(0, 0.5)
+        body_label.set_xalign(0)
+        body_label.set_yalign(0.5)
 
         if hasattr(body_label, 'set_lines'):
             body_label.set_max_width_chars(style.MENU_WIDTH_CHARS)
-            body_label.set_line_wrap(True)
+            body_label.set_wrap(True)
             body_label.set_ellipsize(style.ELLIPSIZE_MODE_DEFAULT)
             body_label.set_lines(self.LINES)
             body_label.set_justify(Gtk.Justification.FILL)
         else:
-            # FIXME: fallback for Gtk < 3.10
             body_width = self.LINES * style.MENU_WIDTH_CHARS
             body_width -= self.ELLIPSIS_AND_BREAKS
             body = body.replace('\n', ' ')
@@ -124,27 +132,34 @@ class NotificationBox(Gtk.VBox):
             body = textwrap.fill(body, width=style.MENU_WIDTH_CHARS)
 
         body_label.set_text(body)
-        body_label.show()
+        body_label.set_visible(True)
 
         grid = Gtk.Grid()
-        grid.set_border_width(style.DEFAULT_SPACING)
+        grid.set_margin_start(style.DEFAULT_SPACING)
+        grid.set_margin_end(style.DEFAULT_SPACING)
+        grid.set_margin_top(style.DEFAULT_SPACING)
+        grid.set_margin_bottom(style.DEFAULT_SPACING)
         grid.set_column_spacing(style.DEFAULT_SPACING)
         grid.set_row_spacing(0)
         grid.attach(icon, 0, 0, 1, 2)
         grid.attach(summary_label, 1, 0, 1, 1)
         grid.attach(body_label, 1, 1, 1, 1)
-        grid.show()
+        grid.set_visible(True)
 
-        self._notifications_box.add(grid)
+        self._notifications_box.append(grid)
         self._update_scrolled_size()
-        self.show()
+        self.set_visible(True)
 
     def __clear_cb(self, clear_item):
         logging.debug('NotificationBox.__clear_cb')
-        for entry in self._notifications_box.get_children():
-            self._notifications_box.remove(entry)
+        # GTK4: remove children by iterating
+        child = self._notifications_box.get_first_child()
+        while child is not None:
+            next_child = child.get_next_sibling()
+            self._notifications_box.remove(child)
+            child = next_child
         self._service.clear_by_name(self._name)
-        self.hide()
+        self.set_visible(False)
 
     def __notification_received_cb(self, **kwargs):
         logging.debug('NotificationBox.__notification_received_cb')
@@ -170,7 +185,7 @@ class NotificationButton(ToolButton):
 
     def set_icon(self, icon):
         self._icon = icon
-        self._icon.show()
+        self._icon.set_visible(True)
         self.set_icon_widget(self._icon)
 
     def show_badge(self):
@@ -223,21 +238,26 @@ class NotificationPulsingIcon(PulsingIcon):
     def hide_badge(self):
         self._badge = None
 
-    def do_draw(self, cr):
-        PulsingIcon.do_draw(self, cr)
+    def do_snapshot(self, snapshot):
+        # GTK4: Use snapshot API instead of cairo draw
+        PulsingIcon.do_snapshot(self, snapshot)
         if self._badge:
-            allocation = self.get_allocation()
+            width = self.get_width()
+            height = self.get_height()
 
             # XXX assume icon is centered in its container
             offset = int(self.props.pixel_size / 2) - self.get_badge_size()
-            x = int(allocation.width / 2) + offset
-            y = int(allocation.height / 2) + offset
+            x = int(width / 2) + offset
+            y = int(height / 2) + offset
 
-            cr.set_source_surface(self._badge, x, y)
-            cr.paint()
+            badge_size = self.get_badge_size()
+            rect = Graphene.Rect.alloc()
+            rect.init(x, y, badge_size, badge_size)
+            # Paint the badge texture via snapshot
+            snapshot.append_texture(self._badge, rect)
 
 
-class NotificationIcon(Gtk.EventBox):
+class NotificationIcon(Gtk.Box):
     __gtype_name__ = 'SugarNotificationIcon'
 
     __gproperties__ = {
@@ -252,20 +272,29 @@ class NotificationIcon(Gtk.EventBox):
         self._icon = NotificationPulsingIcon()
         self._icon.props.pixel_size = style.STANDARD_ICON_SIZE
 
-        Gtk.EventBox.__init__(self, **kwargs)
-        self.props.visible_window = False
+        Gtk.Box.__init__(self, **kwargs)
 
         self._icon.props.pulse_color = \
             XoColor('%s,%s' % (style.COLOR_BUTTON_GREY.get_svg(),
                                style.COLOR_TRANSPARENT.get_svg()))
         self._icon.props.pulsing = True
-        self.add(self._icon)
-        self._icon.show()
+        self.append(self._icon)
+        self._icon.set_visible(True)
 
         GLib.timeout_add_seconds(self._PULSE_TIMEOUT,
                                  self.__stop_pulsing_cb)
 
         self.set_size_request(style.GRID_CELL_SIZE, style.GRID_CELL_SIZE)
+
+        # GTK4: Add click controller for button-release-event replacement
+        click_controller = Gtk.GestureClick()
+        click_controller.connect('released', self.__click_released_cb)
+        self.add_controller(click_controller)
+
+    def __click_released_cb(self, gesture, n_press, x, y):
+        # This replaces 'button-release-event' signal
+        # Subclasses/users can connect to this via the gesture
+        pass
 
     def __stop_pulsing_cb(self):
         self._icon.props.pulsing = False
@@ -314,11 +343,11 @@ class NotificationWindow(Gtk.Window):
 
         self.set_decorated(False)
         self.set_resizable(False)
-        self.connect('realize', self._realize_cb)
 
-    def _realize_cb(self, widget):
-        self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
-        self.get_window().set_accept_focus(False)
-
-        color = Gdk.color_parse(style.COLOR_TOOLBAR_GREY.get_html())
-        self.modify_bg(Gtk.StateType.NORMAL, color)
+        # GTK4: Use CSS for background color instead of modify_bg
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_data(
+            b"window { background-color: %s; }" %
+            style.COLOR_TOOLBAR_GREY.get_html().encode())
+        self.get_style_context().add_provider(
+            css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)

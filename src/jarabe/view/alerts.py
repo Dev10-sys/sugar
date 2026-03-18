@@ -58,11 +58,12 @@ def show_multiple_instance_alert(window, activity_name):
     alert = MultipleInstanceAlert(activity_name)
     alert.connect('response', _alert_response_cb, window)
     window.add_alert(alert)
-    alert.show()
+    # GTK4: show() → set_visible(True)
+    alert.set_visible(True)
 
 
 def show_max_open_activities_alert(window):
     alert = MaxOpenActivitiesAlert()
     alert.connect('response', _alert_response_cb, window)
     window.add_alert(alert)
-    alert.show()
+    alert.set_visible(True)

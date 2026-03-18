@@ -29,20 +29,23 @@ from jarabe.frame.frameinvoker import FrameWidgetInvoker
 from jarabe.model import shell
 
 
-class ZoomToolbar(Gtk.Toolbar):
+class ZoomToolbar(Gtk.Box):
     __gsignals__ = {
         'level-clicked': (GObject.SignalFlags.RUN_FIRST, None,
                           ([]))
     }
 
     def __init__(self):
-        Gtk.Toolbar.__init__(self)
+        # GTK4: Gtk.Toolbar → Gtk.Box
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
 
         # we shouldn't be mirrored in RTL locales
         self.set_direction(Gtk.TextDirection.LTR)
 
         # ask not to be collapsed if possible
         self.set_size_request(4 * style.GRID_CELL_SIZE, -1)
+
+        self._buttons = []
 
         self._mesh_button = self._add_button('zoom-neighborhood',
                                              _('Neighborhood'),
@@ -67,16 +70,18 @@ class ZoomToolbar(Gtk.Toolbar):
         shell_model.zoom_level_changed.connect(self.__zoom_level_changed_cb)
 
     def _add_button(self, icon_name, label, accelerator, zoom_level):
-        if self.get_children():
-            group = self.get_children()[0]
+        if self._buttons:
+            group = self._buttons[0]
         else:
             group = None
 
         button = RadioToolButton(icon_name=icon_name, group=group,
                                  accelerator=accelerator)
         button.connect('clicked', self.__level_clicked_cb, zoom_level)
-        self.add(button)
-        button.show()
+        self.append(button)
+        button.set_visible(True)
+
+        self._buttons.append(button)
 
         palette = Palette(GLib.markup_escape_text(label))
         palette.props.invoker = FrameWidgetInvoker(button)

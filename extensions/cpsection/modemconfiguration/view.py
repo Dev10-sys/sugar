@@ -40,24 +40,23 @@ def _create_providers_list_store(items):
     return gtk_list
 
 
-class EntryWithLabel(Gtk.HBox):
+class EntryWithLabel(Gtk.Box):
     __gtype_name__ = 'SugarEntryWithLabel'
 
     def __init__(self, label_text):
-        Gtk.HBox.__init__(self, spacing=style.DEFAULT_SPACING)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL, spacing=style.DEFAULT_SPACING)
 
         self.label = Gtk.Label(label=label_text)
-        self.label.modify_fg(Gtk.StateType.NORMAL,
-                             style.COLOR_SELECTION_GREY.get_gdk_color())
-        self.label.set_alignment(1, 0.5)
-        self.pack_start(self.label, False, True, 0)
-        self.label.show()
+        self.label.set_xalign(1.0)
+        self.label.set_yalign(0.5)
+        self.append(self.label)
+        self.label.set_visible(True)
 
         self._entry = Gtk.Entry()
         self._entry.set_max_length(25)
         self._entry.set_width_chars(25)
-        self.pack_start(self._entry, False, True, 0)
-        self._entry.show()
+        self.append(self._entry)
+        self._entry.set_visible(True)
 
     def get_entry(self):
         return self._entry
@@ -73,7 +72,10 @@ class ModemConfiguration(SectionView):
         self.restart_alerts = alerts
         self._timeout_sid = 0
 
-        self.set_border_width(style.DEFAULT_SPACING)
+        self.set_margin_start(style.DEFAULT_SPACING)
+        self.set_margin_end(style.DEFAULT_SPACING)
+        self.set_margin_top(style.DEFAULT_SPACING)
+        self.set_margin_bottom(style.DEFAULT_SPACING)
         self.set_spacing(style.DEFAULT_SPACING)
 
         self._label_grp = Gtk.SizeGroup(Gtk.SizeGroupMode.HORIZONTAL)
@@ -82,27 +84,34 @@ class ModemConfiguration(SectionView):
         scrolled_win = Gtk.ScrolledWindow()
         scrolled_win.set_policy(Gtk.PolicyType.AUTOMATIC,
                                 Gtk.PolicyType.AUTOMATIC)
-        self.add(scrolled_win)
-        scrolled_win.show()
+        self.set_child(scrolled_win)
+        scrolled_win.set_visible(True)
 
-        main_box = Gtk.VBox(spacing=style.DEFAULT_SPACING)
-        main_box.set_border_width(style.DEFAULT_SPACING)
-        scrolled_win.add_with_viewport(main_box)
-        main_box.show()
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=style.DEFAULT_SPACING)
+        main_box.set_margin_start(style.DEFAULT_SPACING)
+        main_box.set_margin_end(style.DEFAULT_SPACING)
+        main_box.set_margin_top(style.DEFAULT_SPACING)
+        main_box.set_margin_bottom(style.DEFAULT_SPACING)
+        scrolled_win.set_child(main_box)
+        main_box.set_visible(True)
 
         explanation = _('You will need to provide the following information'
                         ' to set up a mobile broadband connection to a'
                         ' cellular (3G) network.')
         self._text = Gtk.Label(label=explanation)
         self._text.set_line_wrap(True)
-        self._text.set_alignment(0, 0)
-        main_box.pack_start(self._text, True, False, 0)
-        self._text.show()
+        self._text.set_xalign(0.0)
+        self._text.set_yalign(0.0)
+        main_box.append(self._text)
+        self._text.set_visible(True)
 
-        self._upper_box = Gtk.VBox(spacing=style.DEFAULT_SPACING)
-        self._upper_box.set_border_width(style.DEFAULT_SPACING)
-        main_box.pack_start(self._upper_box, True, False, 0)
-        self._upper_box.show()
+        self._upper_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=style.DEFAULT_SPACING)
+        self._upper_box.set_margin_start(style.DEFAULT_SPACING)
+        self._upper_box.set_margin_end(style.DEFAULT_SPACING)
+        self._upper_box.set_margin_top(style.DEFAULT_SPACING)
+        self._upper_box.set_margin_bottom(style.DEFAULT_SPACING)
+        main_box.append(self._upper_box)
+        self._upper_box.set_visible(True)
 
         country_store = Gtk.ListStore(str, object)
         country_store.append([])
@@ -117,9 +126,9 @@ class ModemConfiguration(SectionView):
         self.provider_combo = self._add_combo(provider_store, _('Provider:'))
         self.plan_combo = self._add_combo(plan_store, _('Plan:'))
 
-        separator = Gtk.HSeparator()
-        main_box.pack_start(separator, True, False, 0)
-        separator.show()
+        separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        main_box.append(separator)
+        separator.set_visible(True)
 
         try:
             self.service_providers = self._model.ServiceProviders()
@@ -153,51 +162,55 @@ class ModemConfiguration(SectionView):
             self.provider_combo.connect("changed", self._provider_selected_cb)
             self.plan_combo.connect("changed", self._plan_selected_cb)
 
-        lower_box = Gtk.VBox(spacing=style.DEFAULT_SPACING)
-        lower_box.set_border_width(style.DEFAULT_SPACING)
-        main_box.pack_start(lower_box, True, False, 0)
-        lower_box.show()
+        lower_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=style.DEFAULT_SPACING)
+        lower_box.set_margin_start(style.DEFAULT_SPACING)
+        lower_box.set_margin_end(style.DEFAULT_SPACING)
+        lower_box.set_margin_top(style.DEFAULT_SPACING)
+        lower_box.set_margin_bottom(style.DEFAULT_SPACING)
+        main_box.append(lower_box)
+        lower_box.set_visible(True)
 
         self._username_entry = EntryWithLabel(_('Username:'))
         self._username_entry.entry.connect('changed', self.__entry_changed_cb)
         self._label_grp.add_widget(self._username_entry.label)
         self._combo_grp.add_widget(self._username_entry.entry)
-        lower_box.pack_start(self._username_entry, False, True, 0)
-        self._username_entry.show()
+        lower_box.append(self._username_entry)
+        self._username_entry.set_visible(True)
 
         self._password_entry = EntryWithLabel(_('Password:'))
         self._password_entry.entry.connect('changed', self.__entry_changed_cb)
         self._label_grp.add_widget(self._password_entry.label)
         self._combo_grp.add_widget(self._password_entry.entry)
-        lower_box.pack_start(self._password_entry, False, True, 0)
-        self._password_entry.show()
+        lower_box.append(self._password_entry)
+        self._password_entry.set_visible(True)
 
         self._number_entry = EntryWithLabel(_('Number:'))
         self._number_entry.entry.connect('changed', self.__entry_changed_cb)
         self._label_grp.add_widget(self._number_entry.label)
         self._combo_grp.add_widget(self._number_entry.entry)
-        lower_box.pack_start(self._number_entry, False, True, 0)
-        self._number_entry.show()
+        lower_box.append(self._number_entry)
+        self._number_entry.set_visible(True)
 
         self._apn_entry = EntryWithLabel(_('Access Point Name (APN):'))
         self._apn_entry.entry.connect('changed', self.__entry_changed_cb)
         self._label_grp.add_widget(self._apn_entry.label)
         self._combo_grp.add_widget(self._apn_entry.entry)
-        lower_box.pack_start(self._apn_entry, False, True, 0)
-        self._apn_entry.show()
+        lower_box.append(self._apn_entry)
+        self._apn_entry.set_visible(True)
 
         self._pin_entry = EntryWithLabel(_('Personal Identity Number (PIN):'))
         self._pin_entry.entry.connect('changed', self.__entry_changed_cb)
         self._label_grp.add_widget(self._pin_entry.label)
         self._combo_grp.add_widget(self._pin_entry.entry)
-        lower_box.pack_start(self._pin_entry, False, True, 0)
-        self._pin_entry.show()
+        lower_box.append(self._pin_entry)
+        self._pin_entry.set_visible(True)
 
         self.setup()
 
     def _add_combo(self, store, label_text=''):
-        label = Gtk.Label(label_text)
-        label.set_alignment(1, 0.5)
+        label = Gtk.Label(label=label_text)
+        label.set_xalign(1.0)
+        label.set_yalign(0.5)
         self._label_grp.add_widget(label)
 
         combo = Gtk.ComboBox()
@@ -210,14 +223,14 @@ class ModemConfiguration(SectionView):
         combo.pack_start(renderer_text, True)
         combo.add_attribute(renderer_text, "text", 0)
 
-        box = Gtk.HBox(spacing=style.DEFAULT_SPACING)
-        box.pack_start(label, False, True, 0)
-        label.show()
-        box.pack_start(combo, False, True, 0)
-        combo.show()
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=style.DEFAULT_SPACING)
+        box.append(label)
+        label.set_visible(True)
+        box.append(combo)
+        combo.set_visible(True)
 
-        self._upper_box.pack_start(box, False, True, 0)
-        box.show()
+        self._upper_box.append(box)
+        box.set_visible(True)
         return combo
 
     def undo(self):

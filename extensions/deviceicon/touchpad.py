@@ -52,7 +52,10 @@ class DeviceView(TrayIcon):
         TrayIcon.__init__(self, icon_name=icon_name, xo_color=color)
 
         self.set_palette_invoker(FrameWidgetInvoker(self))
-        self.connect('button-release-event', self.__button_release_event_cb)
+        # GTK4: Use GestureClick instead of button-release-event
+        gesture = Gtk.GestureClick()
+        gesture.connect('released', self.__released_cb)
+        self.add_controller(gesture)
 
     def create_palette(self):
         """ Create a palette for this icon; called by the Sugar framework
@@ -61,9 +64,8 @@ class DeviceView(TrayIcon):
         self.palette.set_group_id('frame')
         return self.palette
 
-    def __button_release_event_cb(self, widget, event):
-        """ Callback for button release event; used to invoke touchpad-mode
-        change. """
+    def __released_cb(self, gesture, n_press, x, y):
+        """ GTK4: Callback for gesture release event """
         self.palette.toggle_mode()
         return True
 
@@ -77,14 +79,14 @@ class ResourcePalette(Palette):
 
         self._icon = icon
 
-        vbox = Gtk.VBox()
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.set_content(vbox)
 
         self._status_text = Gtk.Label()
-        vbox.pack_start(self._status_text, True, True, style.DEFAULT_PADDING)
-        self._status_text.show()
+        vbox.append(self._status_text)
+        self._status_text.set_visible(True)
 
-        vbox.show()
+        vbox.set_visible(True)
 
         self._mode = _read_touchpad_mode()
         self._update()

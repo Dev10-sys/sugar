@@ -54,7 +54,7 @@ class WebServicesConfig(SectionView):
                         fill_color=style.COLOR_TRANSPARENT.get_svg())
 
             grid.attach(icon, 0, 0, 1, 1)
-            icon.show()
+            icon.set_visible(True)
 
             label = Gtk.Label()
             label.set_justify(Gtk.Justification.CENTER)
@@ -65,33 +65,38 @@ class WebServicesConfig(SectionView):
                        _('No web services are installed.\n'
                          'Please visit %s for more details.' %
                          'http://wiki.sugarlabs.org/go/WebServices'))))
-            label.show()
+            label.set_visible(True)
             grid.attach(label, 0, 1, 1, 1)
 
-            alignment = Gtk.Alignment.new(0.5, 0.5, 0.1, 0.1)
-            alignment.add(grid)
-            grid.show()
+            grid.set_halign(Gtk.Align.CENTER)
+            grid.set_valign(Gtk.Align.CENTER)
+            grid.set_visible(True)
 
-            self.add(alignment)
-            alignment.show()
+            self.set_child(grid)
             return
 
         grid.set_row_spacing(style.DEFAULT_SPACING * 4)
         grid.set_column_spacing(style.DEFAULT_SPACING * 4)
-        grid.set_border_width(style.DEFAULT_SPACING * 2)
+        grid.set_margin_start(style.DEFAULT_SPACING * 2)
+        grid.set_margin_end(style.DEFAULT_SPACING * 2)
+        grid.set_margin_top(style.DEFAULT_SPACING * 2)
+        grid.set_margin_bottom(style.DEFAULT_SPACING * 2)
         grid.set_column_homogeneous(True)
 
-        width = Gdk.Screen.width() - 2 * style.GRID_CELL_SIZE
+        display = Gdk.Display.get_default()
+        monitor = display.get_monitors().get_item(0)
+        geometry = monitor.get_geometry()
+        width = geometry.width - 2 * style.GRID_CELL_SIZE
         nx = int(width / (style.GRID_CELL_SIZE + style.DEFAULT_SPACING * 4))
 
-        self._service_config_box = Gtk.VBox()
+        self._service_config_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         x = 0
         y = 0
         for service in services:
             service_grid = Gtk.Grid()
             icon = CanvasIcon(icon_name=service.get_icon_name())
-            icon.show()
+            icon.set_visible(True)
             service_grid.attach(icon, x, y, 1, 1)
 
             icon.connect('activate', service.config_service_cb, None,
@@ -102,38 +107,37 @@ class WebServicesConfig(SectionView):
             name = get_service_name(service)
             label.set_markup(name)
             service_grid.attach(label, x, y + 1, 1, 1)
-            label.show()
+            label.set_visible(True)
 
             grid.attach(service_grid, x, y, 1, 1)
-            service_grid.show()
+            service_grid.set_visible(True)
 
             x += 1
             if x == nx:
                 x = 0
                 y += 1
 
-        alignment = Gtk.Alignment.new(0.5, 0, 0, 0)
-        alignment.add(grid)
-        grid.show()
+        grid.set_halign(Gtk.Align.CENTER)
+        grid.set_valign(Gtk.Align.START)
+        grid.set_visible(True)
 
-        vbox = Gtk.VBox()
-        vbox.pack_start(alignment, False, False, 0)
-        alignment.show()
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        vbox.append(grid)
 
         scrolled = Gtk.ScrolledWindow()
-        vbox.pack_start(scrolled, True, True, 0)
-
-        self.add(vbox)
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        scrolled.show()
+        vbox.append(scrolled)
 
-        workspace = Gtk.VBox()
-        scrolled.add_with_viewport(workspace)
-        workspace.show()
+        self.set_child(vbox)
+        vbox.set_visible(True)
+        scrolled.set_visible(True)
 
-        workspace.add(self._service_config_box)
-        workspace.show_all()
-        vbox.show()
+        workspace = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        scrolled.set_child(workspace)
+        workspace.set_visible(True)
+
+        workspace.append(self._service_config_box)
+        self._service_config_box.set_visible(True)
 
     def undo(self):
         pass

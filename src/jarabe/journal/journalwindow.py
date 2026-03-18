@@ -32,7 +32,7 @@ class JournalWindow(Window):
         self.set_title(_('Journal'))
 
         # Stop the user from closing the journal window.
-        self.connect('delete-event', lambda widget, event: True)
+        self.connect('close-request', lambda widget: True)
 
 
 def get_journal_window():

@@ -24,8 +24,13 @@ def _get_screen_area():
 
     screen_area = Gdk.Rectangle()
     screen_area.x = screen_area.y = frame_thickness
-    screen_area.width = Gdk.Screen.width() - frame_thickness
-    screen_area.height = Gdk.Screen.height() - frame_thickness
+
+    # GTK4: Use Display/Monitor API instead of deprecated Gdk.Screen
+    display = Gdk.Display.get_default()
+    monitor = display.get_monitors().get_item(0)
+    geometry = monitor.get_geometry()
+    screen_area.width = geometry.width - frame_thickness
+    screen_area.height = geometry.height - frame_thickness
 
     return screen_area
 

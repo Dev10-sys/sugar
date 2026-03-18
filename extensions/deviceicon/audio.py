@@ -92,10 +92,10 @@ class DeviceView(TrayIcon):
         self._update_output_info()
 
 
-class AudioManagerWidget(Gtk.VBox):
+class AudioManagerWidget(Gtk.Box):
 
     def __init__(self, text, icon_name, device):
-        Gtk.VBox.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
         self._device = device
 
         self._ok_icon = Icon(icon_name='dialog-ok')
@@ -105,23 +105,20 @@ class AudioManagerWidget(Gtk.VBox):
         icon.props.icon_name = icon_name
         icon.props.xo_color = XoColor('%s,%s' % (style.COLOR_WHITE.get_svg(),
                                       style.COLOR_BUTTON_GREY.get_svg()))
-        icon.show()
+        icon.set_visible(True)
 
-        label = Gtk.Label(text)
-        label.show()
+        label = Gtk.Label(label=text)
+        label.set_visible(True)
 
         grid = Gtk.Grid()
         grid.set_column_spacing(style.DEFAULT_SPACING)
         grid.attach(icon, 0, 0, 1, 1)
         grid.attach(label, 1, 0, 1, 1)
-        grid.show()
+        grid.set_visible(True)
 
-        alignment = Gtk.Alignment()
-        alignment.set(0.5, 0, 0, 0)
-        alignment.add(grid)
-        alignment.show()
-
-        self.add(alignment)
+        grid.set_halign(Gtk.Align.CENTER)
+        grid.set_valign(Gtk.Align.START)
+        self.append(grid)
 
         adjustment = Gtk.Adjustment(
             value=device.props.level,
@@ -132,34 +129,34 @@ class AudioManagerWidget(Gtk.VBox):
             page_size=sound.VOLUME_STEP)
         self._adjustment = adjustment
 
-        hscale = Gtk.HScale()
+        hscale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
         hscale.props.draw_value = False
         hscale.set_adjustment(adjustment)
         hscale.set_digits(0)
         hscale.set_size_request(style.GRID_CELL_SIZE * 4, -1)
-        hscale.show()
+        hscale.set_visible(True)
 
         button = Gtk.Button()
-        button.props.relief = Gtk.ReliefStyle.NONE
+        button.set_has_frame(False)
         button.props.focus_on_click = False
         button.connect('clicked', self.__muted_clicked_cb)
-        button.show()
+        button.set_visible(True)
         self._button = button
 
-        grid = Gtk.Grid()
-        grid.set_column_spacing(style.DEFAULT_SPACING)
-        grid.attach(hscale, 0, 0, 1, 1)
-        grid.attach(button, 1, 0, 1, 1)
-        grid.show()
+        grid2 = Gtk.Grid()
+        grid2.set_column_spacing(style.DEFAULT_SPACING)
+        grid2.attach(hscale, 0, 0, 1, 1)
+        grid2.attach(button, 1, 0, 1, 1)
+        grid2.set_visible(True)
 
-        alignment = Gtk.Alignment()
-        alignment.set(0.5, 0, 0, 0)
-        alignment.set_padding(0, 0, style.DEFAULT_SPACING,
-                              style.DEFAULT_SPACING)
-        alignment.add(grid)
-        alignment.show()
+        grid2.set_halign(Gtk.Align.CENTER)
+        grid2.set_valign(Gtk.Align.START)
+        grid2.set_margin_start(style.DEFAULT_SPACING)
+        grid2.set_margin_end(style.DEFAULT_SPACING)
+        grid2.set_margin_top(style.DEFAULT_SPACING)
+        grid2.set_margin_bottom(style.DEFAULT_SPACING)
 
-        self.add(alignment)
+        self.append(grid2)
 
         self._adjustment_hid = \
             self._adjustment.connect('value-changed',
@@ -209,21 +206,21 @@ class AudioPalette(Palette):
         self._capture_manager = AudioManagerWidget(input_text,
                                                    'media-audio-input',
                                                    input_model)
-        self._capture_manager.show()
+        self._capture_manager.set_visible(True)
 
         separator = PaletteMenuItemSeparator()
-        separator.show()
+        separator.set_visible(True)
 
         self._speaker_manager = AudioManagerWidget(output_text,
                                                    'speaker-100',
                                                    output_model)
-        self._speaker_manager.show()
+        self._speaker_manager.set_visible(True)
 
         self._box = PaletteMenuBox()
-        self._box.append_item(self._capture_manager, 0, 0)
-        self._box.append_item(separator, 0, 0)
-        self._box.append_item(self._speaker_manager, 0, 0)
-        self._box.show()
+        self._box.append_item(self._capture_manager)
+        self._box.append_item(separator)
+        self._box.append_item(self._speaker_manager)
+        self._box.set_visible(True)
 
         self.set_content(self._box)
 

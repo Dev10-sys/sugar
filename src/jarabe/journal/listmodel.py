@@ -273,8 +273,12 @@ class ListModel(GObject.GObject, Gtk.TreeModel, Gtk.TreeDragSource):
 
     def do_drag_data_get(self, path, selection):
         uid = self[path][ListModel.COLUMN_UID]
-        target_atom = selection.get_target()
-        target_name = target_atom.name()
+        target = selection.get_target()
+        if hasattr(target, 'name'):
+            target_name = target.name()
+        else:
+            target_name = str(target)
+
         if target_name == 'text/uri-list':
             # Only get a new temp path if we have a new file, the frame
             # requests a path many times and if we give it a new path it
@@ -284,11 +288,11 @@ class ListModel(GObject.GObject, Gtk.TreeModel, Gtk.TreeDragSource):
                 self._temp_drag_file_path = model.get_file(uid)
                 self._temp_drag_file_uid = uid
             logging.debug('putting %r in selection', self._temp_drag_file_path)
-            selection.set(target_atom, 8, self._temp_drag_file_path)
+            selection.set(target, 8, self._temp_drag_file_path.encode('utf-8'))
             return True
         if target_name == 'journal-object-id':
-            # uid is unicode but Gtk.SelectionData.set() needs str
-            selection.set(target_atom, 8, str(uid))
+            # uid is unicode but Gtk.SelectionData.set() needs bytes
+            selection.set(target, 8, str(uid).encode('utf-8'))
             return True
 
         return False

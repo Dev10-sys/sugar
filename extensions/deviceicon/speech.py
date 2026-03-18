@@ -73,7 +73,7 @@ class SpeechPalette(Palette):
         self._play_pause_menu.set_image(self._play_icon)
         self._play_pause_menu.connect('activate', self.__play_activated_cb)
         box.append_item(self._play_pause_menu)
-        self._play_pause_menu.show()
+        self._play_pause_menu.set_visible(True)
 
         self._stop_menu = PaletteMenuItem(icon_name='player_stop',
                                           text_label=_('Stop playback'))
@@ -83,37 +83,37 @@ class SpeechPalette(Palette):
 
         separator = PaletteMenuItemSeparator()
         box.append_item(separator)
-        separator.show()
+        separator.set_visible(True)
 
-        pitch_label = Gtk.Label(_('Pitch'))
-        box.append_item(pitch_label, vertical_padding=0)
-        pitch_label.show()
+        pitch_label = Gtk.Label(label=_('Pitch'))
+        box.append_item(pitch_label)
+        pitch_label.set_visible(True)
 
         self._adj_pitch = Gtk.Adjustment(value=self._manager.get_pitch(),
                                          lower=self._manager.MIN_PITCH,
                                          upper=self._manager.MAX_PITCH)
 
-        hscale_pitch = Gtk.HScale()
+        hscale_pitch = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
         hscale_pitch.set_adjustment(self._adj_pitch)
-        hscale_pitch.set_draw_value(False)
+        hscale_pitch.props.draw_value = False
 
-        box.append_item(hscale_pitch, vertical_padding=0)
-        hscale_pitch.show()
+        box.append_item(hscale_pitch)
+        hscale_pitch.set_visible(True)
 
-        rate_label = Gtk.Label(_('Rate'))
-        box.append_item(rate_label, vertical_padding=0)
-        rate_label.show()
+        rate_label = Gtk.Label(label=_('Rate'))
+        box.append_item(rate_label)
+        rate_label.set_visible(True)
 
         self._adj_rate = Gtk.Adjustment(value=self._manager.get_rate(),
                                         lower=self._manager.MIN_RATE,
                                         upper=self._manager.MAX_RATE)
 
-        hscale_rate = Gtk.HScale()
+        hscale_rate = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
         hscale_rate.set_adjustment(self._adj_rate)
-        hscale_rate.set_draw_value(False)
+        hscale_rate.props.draw_value = False
 
-        box.append_item(hscale_rate, vertical_padding=0)
-        hscale_rate.show()
+        box.append_item(hscale_rate)
+        hscale_rate.set_visible(True)
 
         self._adj_pitch.connect('value-changed', self.__adj_pitch_changed_cb)
         self._adj_rate.connect('value-changed', self.__adj_rate_changed_cb)

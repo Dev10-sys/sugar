@@ -19,6 +19,7 @@ import hashlib
 
 from gi.repository import Gtk
 from gi.repository import Gdk
+from gi.repository import GLib
 
 from jarabe.frame.framewindow import FrameWindow
 from jarabe.frame.clipboardtray import ClipboardTray
@@ -33,25 +34,26 @@ class ClipboardPanelWindow(FrameWindow):
 
         self._frame = frame
 
-        # Listening for new clipboard objects
-        # NOTE: we need to keep a reference to Gtk.Clipboard in order to keep
-        # listening to it.
-        self._clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-        self._clipboard.connect('owner-change', self._owner_change_cb)
+        # GTK4: Use Display clipboard API instead of Gtk.Clipboard
+        display = Gdk.Display.get_default()
+        self._clipboard = display.get_clipboard()
+        self._clipboard.connect('changed', self._owner_change_cb)
 
         self._clipboard_tray = ClipboardTray()
-        self._clipboard_tray.show()
+        self._clipboard_tray.set_visible(True)
         self.append(self._clipboard_tray)
 
-        # Receiving dnd drops
-        self.drag_dest_set(0, [], 0)
-        self.connect('drag-motion', self._clipboard_tray.drag_motion_cb)
-        self.connect('drag-leave', self._clipboard_tray.drag_leave_cb)
-        self.connect('drag-drop', self._clipboard_tray.drag_drop_cb)
-        self.connect('drag-data-received',
-                     self._clipboard_tray.drag_data_received_cb)
+        # GTK4: Use DropTarget instead of legacy drag_dest_set
+        drop_target = Gtk.DropTarget.new(
+            GLib.types[GLib.TYPE_STRING] if hasattr(GLib, 'types')
+            else GObject.TYPE_STRING,
+            Gdk.DragAction.COPY)
+        drop_target.connect('drop', self._clipboard_tray.drop_cb)
+        drop_target.connect('motion', self._clipboard_tray.drag_motion_cb)
+        drop_target.connect('leave', self._clipboard_tray.drag_leave_cb)
+        self.add_controller(drop_target)
 
-    def _owner_change_cb(self, x_clipboard, event):
+    def _owner_change_cb(self, gdk_clipboard):
         logging.debug('owner_change_cb')
 
         if self._clipboard_tray.owns_clipboard():
@@ -59,41 +61,27 @@ class ClipboardPanelWindow(FrameWindow):
 
         cb_service = clipboard.get_instance()
 
-        result, targets = x_clipboard.wait_for_targets()
-        cb_selections = []
-        if not result:
+        # GTK4: Read clipboard content asynchronously
+        self._clipboard.read_text_async(None, self._on_text_received, cb_service)
+
+    def _on_text_received(self, clipboard, result, cb_service):
+        try:
+            text = clipboard.read_text_finish(result)
+        except Exception:
+            logging.debug('No text content in clipboard')
             return
 
-        target_is_uri = False
-        for target in targets:
-            if target not in ('TIMESTAMP', 'TARGETS',
-                              'MULTIPLE', 'SAVE_TARGETS'):
-                logging.debug('Asking for target %s.', target)
-                if target == 'text/uri-list':
-                    target_is_uri = True
+        if text is None:
+            return
 
-                selection = x_clipboard.wait_for_contents(target)
-                if not selection:
-                    logging.warning('no data for selection target %s.', target)
-                    continue
-                cb_selections.append(selection)
-
-        if target_is_uri:
-            uri = selection.get_uris()[0]
-            filename = uri[len('file://'):].strip()
-            md5 = self._md5_for_file(filename)
-            data_hash = hash(md5)
-        else:
-            data_hash = hash(selection.get_data())
-
-        if len(cb_selections) > 0:
-            key = cb_service.add_object(name="", data_hash=data_hash)
-            if key is None:
-                return
-            cb_service.set_object_percent(key, percent=0)
-            for selection in cb_selections:
-                self._add_selection(key, selection)
-            cb_service.set_object_percent(key, percent=100)
+        data_hash = hash(text.encode())
+        key = cb_service.add_object(name="", data_hash=data_hash)
+        if key is None:
+            return
+        cb_service.set_object_percent(key, percent=0)
+        cb_service.add_object_format(key, 'text/plain', text.encode(),
+                                     on_disk=False)
+        cb_service.set_object_percent(key, percent=100)
 
     def _md5_for_file(self, file_name):
         '''Calculate md5 for file data
@@ -102,7 +90,7 @@ class ClipboardPanelWindow(FrameWindow):
         '''
         block_size = 8192
         md5 = hashlib.md5()
-        f = open(file_name, 'r')
+        f = open(file_name, 'rb')
         while True:
             data = f.read(block_size)
             if not data:
@@ -110,34 +98,3 @@ class ClipboardPanelWindow(FrameWindow):
             md5.update(data)
         f.close()
         return md5.digest()
-
-    def _add_selection(self, key, selection):
-        if not selection.get_data():
-            logging.warning('no data for selection target %s.',
-                            selection.get_data_type())
-            return
-
-        selection_type = str(selection.get_data_type())
-        logging.debug('adding type ' + selection_type + '.')
-
-        cb_service = clipboard.get_instance()
-        if selection_type == 'text/uri-list':
-            uris = selection.get_uris()
-
-            if len(uris) > 1:
-                raise NotImplementedError('Multiple uris in text/uri-list'
-                                          ' still not supported.')
-            uri = uris[0]
-            scheme, netloc_, path_, parameters_, query_, fragment_ = \
-                urlparse(uri)
-            on_disk = (scheme == 'file')
-
-            cb_service.add_object_format(key,
-                                         selection_type,
-                                         uri,
-                                         on_disk)
-        else:
-            cb_service.add_object_format(key,
-                                         selection_type,
-                                         selection.get_data(),
-                                         on_disk=False)

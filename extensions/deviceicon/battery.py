@@ -128,22 +128,22 @@ class BatteryPalette(Palette):
 
         self._progress_widget = PaletteMenuBox()
         self.set_content(self._progress_widget)
-        self._progress_widget.show()
+        self._progress_widget.set_visible(True)
 
-        inner_box = Gtk.VBox()
+        inner_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         inner_box.set_spacing(style.DEFAULT_PADDING)
         self._progress_widget.append_item(inner_box, vertical_padding=0)
-        inner_box.show()
+        inner_box.set_visible(True)
 
         self._progress_bar = Gtk.ProgressBar()
         self._progress_bar.set_size_request(
             style.zoom(style.GRID_CELL_SIZE * 4), -1)
-        inner_box.pack_start(self._progress_bar, True, True, 0)
-        self._progress_bar.show()
+        inner_box.append(self._progress_bar)
+        self._progress_bar.set_visible(True)
 
         self._status_label = Gtk.Label()
-        inner_box.pack_start(self._status_label, True, True, 0)
-        self._status_label.show()
+        inner_box.append(self._status_label)
+        self._status_label.set_visible(True)
 
     def set_info(self, percentage, seconds, status):
         self._level = percentage

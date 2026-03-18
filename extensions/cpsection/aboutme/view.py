@@ -169,7 +169,10 @@ class AboutMe(SectionView):
         self._gender = ''
         self._age = None
 
-        self.set_border_width(style.DEFAULT_SPACING * 2)
+        self.set_margin_start(style.DEFAULT_SPACING * 2)
+        self.set_margin_end(style.DEFAULT_SPACING * 2)
+        self.set_margin_top(style.DEFAULT_SPACING * 2)
+        self.set_margin_bottom(style.DEFAULT_SPACING * 2)
         self.set_spacing(style.DEFAULT_SPACING)
 
         self._color = XoColor(self._model.get_color())
@@ -211,20 +214,15 @@ class AboutMe(SectionView):
         alert_grid.attach(self._nick_alert, 0, 0, 1, 1)
         if 'nick' in self.restart_alerts:
             self._nick_alert.props.msg = self.restart_msg
-            self._nick_alert.show()
+            self._nick_alert.set_visible(True)
 
-        center_in_panel = Gtk.Alignment.new(0.5, 0, 0, 0)
-        center_in_panel.add(grid)
-        grid.show()
+        grid.set_halign(Gtk.Align.CENTER)
+        self.append(grid)
+        grid.set_visible(True)
 
-        center_alert = Gtk.Alignment.new(0.5, 0, 0, 0)
-        center_alert.add(alert_grid)
-        alert_grid.show()
-
-        self.pack_start(center_in_panel, False, False, 0)
-        self.pack_start(center_alert, False, False, 0)
-        center_in_panel.show()
-        center_alert.show()
+        alert_grid.set_halign(Gtk.Align.CENTER)
+        self.append(alert_grid)
+        alert_grid.set_visible(True)
 
     def _setup_color(self):
         grid = Gtk.Grid()
@@ -242,46 +240,41 @@ class AboutMe(SectionView):
         }
 
         label_color = Gtk.Label(label=_('Click to change your color:'))
-        label_color.modify_fg(Gtk.StateType.NORMAL,
-                              style.COLOR_SELECTION_GREY.get_gdk_color())
         grid.attach(label_color, 0, 0, 3, 1)
-        label_color.show()
+        label_color.set_visible(True)
 
         current = 0
         for picker_index in sorted(self._pickers.keys()):
             if picker_index == _CURRENT_COLOR:
-                left_separator = Gtk.SeparatorToolItem()
+                left_separator = Gtk.Separator()
                 grid.attach(left_separator, current, 1, 1, 1)
-                left_separator.show()
+                left_separator.set_visible(True)
                 current += 1
 
             picker = self._pickers[picker_index]
-            picker.show()
+            picker.set_visible(True)
             grid.attach(picker, current, 1, 1, 1)
             current += 1
 
             if picker_index == _CURRENT_COLOR:
-                right_separator = Gtk.SeparatorToolItem()
-                right_separator.show()
+                right_separator = Gtk.Separator()
+                right_separator.set_visible(True)
                 grid.attach(right_separator, current, 1, 1, 1)
                 current += 1
 
         label_color_error = Gtk.Label()
         grid.attach(label_color_error, 0, 2, 3, 1)
-        label_color_error.show()
+        label_color_error.set_visible(True)
 
         self._color_alert = InlineAlert()
         grid.attach(self._color_alert, 0, 3, 3, 1)
         if 'color' in self.restart_alerts:
             self._color_alert.props.msg = self.restart_msg
-            self._color_alert.show()
+            self._color_alert.set_visible(True)
 
-        center_in_panel = Gtk.Alignment.new(0.5, 0, 0, 0)
-        center_in_panel.add(grid)
-        grid.show()
-
-        self.pack_start(center_in_panel, False, False, 0)
-        center_in_panel.show()
+        grid.set_halign(Gtk.Align.CENTER)
+        self.append(grid)
+        grid.set_visible(True)
 
     def _setup_gender(self):
         self._saved_gender = load_gender()
@@ -293,20 +286,15 @@ class AboutMe(SectionView):
         grid.set_column_spacing(style.DEFAULT_SPACING)
 
         label_gender = Gtk.Label(label=_('Select gender:'))
-        label_gender.modify_fg(Gtk.StateType.NORMAL,
-                               style.COLOR_SELECTION_GREY.get_gdk_color())
         grid.attach(label_gender, 0, 0, 1, 1)
-        label_gender.show()
+        label_gender.set_visible(True)
 
         grid.attach(self._gender_pickers, 0, 1, 1, 1)
-        self._gender_pickers.show()
+        self._gender_pickers.set_visible(True)
 
-        center_in_panel = Gtk.Alignment.new(0.5, 0, 0, 0)
-        center_in_panel.add(grid)
-        grid.show()
-
-        self.pack_start(center_in_panel, False, False, 0)
-        center_in_panel.show()
+        grid.set_halign(Gtk.Align.CENTER)
+        self.append(grid)
+        grid.set_visible(True)
 
     def _setup_age(self):
         self._saved_age = load_age()
@@ -316,36 +304,27 @@ class AboutMe(SectionView):
         grid.set_column_spacing(style.DEFAULT_SPACING)
 
         self._age_pickers = AgePicker(self._saved_gender)
-        center_in_panel = Gtk.Alignment.new(0.5, 0, 0, 0)
-        center_in_panel.add(self._age_pickers)
-        self._age_pickers.show()
+        self._age_pickers.set_halign(Gtk.Align.CENTER)
+        self._age_pickers.set_visible(True)
 
         label = self._age_pickers.get_label()
 
         label_age = Gtk.Label(label=_(label))
-        label_age.modify_fg(Gtk.StateType.NORMAL,
-                            style.COLOR_SELECTION_GREY.get_gdk_color())
-        left_align = Gtk.Alignment.new(0, 0, 0, 0)
-        left_align.add(label_age)
-        label_age.show()
-        grid.attach(left_align, 0, 0, 1, 1)
-        left_align.show()
+        label_age.set_halign(Gtk.Align.START)
+        label_age.set_visible(True)
+        grid.attach(label_age, 0, 0, 1, 1)
 
-        grid.attach(center_in_panel, 0, 1, 1, 1)
-        center_in_panel.show()
+        grid.attach(self._age_pickers, 0, 1, 1, 1)
 
-        center_in_panel = Gtk.Alignment.new(0.5, 0, 0, 0)
-        center_in_panel.add(grid)
-        grid.show()
-        self.pack_start(center_in_panel, False, False, 0)
-        center_in_panel.show()
+        grid.set_halign(Gtk.Align.CENTER)
+        self.append(grid)
+        grid.set_visible(True)
 
     def setup(self):
         pass
 
     def undo(self):
         self._model.undo()
-        self._nick_alert.hide()
         self._color_alert.hide()
 
         # Undo gender or age changes

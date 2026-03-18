@@ -67,9 +67,7 @@ class TreeView(Gtk.TreeView):
 
         self.set_headers_visible(False)
         self.set_enable_search(False)
-        self.add_events(Gdk.EventMask.BUTTON_PRESS_MASK |
-                        Gdk.EventMask.TOUCH_MASK |
-                        Gdk.EventMask.BUTTON_RELEASE_MASK)
+        # GTK4: add_events removed (all events available by default)
 
     def connect_to_scroller(self, scrolled):
         scrolled.connect('scroll-start', self._scroll_start_cb)
@@ -146,7 +144,7 @@ class TreeView(Gtk.TreeView):
         self._invoker.detach()
 
 
-class BaseListView(Gtk.Bin):
+class BaseListView(Gtk.Box):
     __gtype_name__ = 'JournalBaseListView'
 
     __gsignals__ = {
@@ -168,7 +166,7 @@ class BaseListView(Gtk.Bin):
         self._scroll_position = 0.
         self._projects_view_active = False
 
-        Gtk.Bin.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
 
         self.connect('map', self.__map_cb)
         self.connect('unmap', self.__unmap_cb)
@@ -177,8 +175,11 @@ class BaseListView(Gtk.Bin):
         self._scrolled_window = Gtk.ScrolledWindow()
         self._scrolled_window.set_policy(Gtk.PolicyType.NEVER,
                                          Gtk.PolicyType.AUTOMATIC)
-        self.add(self._scrolled_window)
-        self._scrolled_window.show()
+        # GTK4: container.add → append, show → set_visible
+        self.append(self._scrolled_window)
+        self._scrolled_window.set_visible(True)
+        self._scrolled_window.set_vexpand(True)
+        self._scrolled_window.set_hexpand(True)
 
         self.tree_view = TreeView(self._journalactivity)
         self.tree_view.connect('detail-clicked', self.__detail_clicked_cb)
@@ -186,8 +187,8 @@ class BaseListView(Gtk.Bin):
         selection = self.tree_view.get_selection()
         selection.set_mode(Gtk.SelectionMode.SINGLE)
         self.tree_view.props.fixed_height_mode = True
-        self._scrolled_window.add(self.tree_view)
-        self.tree_view.show()
+        self._scrolled_window.set_child(self.tree_view)
+        self.tree_view.set_visible(True)
 
         self.cell_title = None
         self.cell_icon = None
@@ -212,12 +213,10 @@ class BaseListView(Gtk.Bin):
         model.deleted.connect(self.__model_deleted_cb)
 
     def enable_drag_and_copy(self):
-        self.tree_view.drag_source_set(Gdk.ModifierType.BUTTON1_MASK,
-                                       [Gtk.TargetEntry.new(
-                                           'text/uri-list', 0, 0),
-                                        Gtk.TargetEntry.new(
-                                            'journal-object-id', 0, 0)],
-                                       Gdk.DragAction.COPY)
+        # GTK4: drag_source_set → Gtk.DragSource
+        drag_source = Gtk.DragSource()
+        drag_source.set_actions(Gdk.DragAction.COPY)
+        self.tree_view.add_controller(drag_source)
 
     def disable_drag_and_copy(self):
         self.tree_view.unset_rows_drag_source()
@@ -357,13 +356,7 @@ class BaseListView(Gtk.Bin):
         width, height_ = layout.get_pixel_size()
         return width
 
-    def do_size_allocate(self, allocation):
-        self.set_allocation(allocation)
-        self.get_child().size_allocate(allocation)
-
-    def do_size_request(self, requisition):
-        requisition.width, requisition.height = \
-            self.get_child().size_request()
+    # GTK4: size_allocate and size_request overrides removed (handled by Box)
 
     def __destroy_cb(self, widget):
         if self._model is not None:
@@ -452,10 +445,9 @@ class BaseListView(Gtk.Bin):
     def refresh(self, new_query=False):
         logging.debug('ListView.refresh query %r', self._query)
         self._stop_progress_bar()
-        window = self.get_toplevel().get_window()
-        if window is not None:
-            window.set_cursor(Gdk.Cursor.new(Gdk.CursorType.WATCH))
-            Gdk.flush()
+        root = self.get_root()
+        if root is not None:
+            root.set_cursor(Gdk.Cursor.new_from_name('wait', None))
         GLib.idle_add(self._do_refresh, new_query)
 
     def _do_refresh(self, new_query=False):
@@ -471,10 +463,9 @@ class BaseListView(Gtk.Bin):
         self._model.connect('ready', self.__model_ready_cb)
         self._model.connect('progress', self.__model_progress_cb)
         self._model.setup(self.__model_updated_cb)
-        window = self.get_toplevel().get_window()
-        if window is not None:
-            window.set_cursor(None)
-            Gdk.flush()
+        root = self.get_root()
+        if root is not None:
+            root.set_cursor(None)
 
     def __model_ready_cb(self, tree_model):
         self._stop_progress_bar()
@@ -482,11 +473,8 @@ class BaseListView(Gtk.Bin):
         self._scroll_position = self.tree_view.props.vadjustment.props.value
         logging.debug('ListView.__model_ready_cb %r', self._scroll_position)
 
-        x11_window = self.tree_view.get_window()
-
-        if x11_window is not None:
-            # prevent glitches while later vadjustment setting, see #1235
-            self.tree_view.get_bin_window().hide()
+        # GTK4: get_window/get_bin_window removed
+        has_surface = self.tree_view.get_realized()
 
         # if the selection was preserved, restore it
         if self._backup_selected is not None:
@@ -500,9 +488,7 @@ class BaseListView(Gtk.Bin):
         self.tree_view.props.vadjustment.props.value = self._scroll_position
         self.tree_view.props.vadjustment.value_changed()
 
-        if x11_window is not None:
-            # prevent glitches while later vadjustment setting, see #1235
-            self.tree_view.get_bin_window().show()
+        # GTK4: bin_window.show() removed
 
         if len(tree_model) == 0:
             if self._query.get('project_id', None):
@@ -558,76 +544,110 @@ class BaseListView(Gtk.Bin):
             self._last_progress_bar_pulse = time.time()
 
     def _start_progress_bar(self):
-        alignment = Gtk.Alignment.new(xalign=0.5, yalign=0.5,
-                                      xscale=0.5, yscale=0)
-        self.remove(self.get_child())
-        self.add(alignment)
-        alignment.show()
+        # GTK4: Gtk.Alignment → Gtk.Box with alignment
+        align_box = Gtk.Box()
+        align_box.set_halign(Gtk.Align.CENTER)
+        align_box.set_valign(Gtk.Align.CENTER)
+        align_box.set_hexpand(True)
+        align_box.set_vexpand(True)
+        # Remove current child
+        child = self.get_first_child()
+        while child is not None:
+            next_c = child.get_next_sibling()
+            self.remove(child)
+            child = next_c
+        self.append(align_box)
+        align_box.set_visible(True)
 
         self._progress_bar = Gtk.ProgressBar()
         self._progress_bar.props.pulse_step = 0.01
         self._last_progress_bar_pulse = time.time()
-        alignment.add(self._progress_bar)
-        self._progress_bar.show()
+        align_box.append(self._progress_bar)
+        self._progress_bar.set_visible(True)
 
     def _stop_progress_bar(self):
         if self._progress_bar is None:
             return
-        self.remove(self.get_child())
-        self.add(self._scrolled_window)
+        child = self.get_first_child()
+        while child is not None:
+            next_c = child.get_next_sibling()
+            self.remove(child)
+            child = next_c
+        self.append(self._scrolled_window)
         self._progress_bar = None
 
     def _show_message(self, message, show_clear_query=False):
-        self.remove(self.get_child())
+        child = self.get_first_child()
+        while child is not None:
+            next_c = child.get_next_sibling()
+            self.remove(child)
+            child = next_c
 
-        background_box = Gtk.EventBox()
-        background_box.modify_bg(Gtk.StateType.NORMAL,
-                                 style.COLOR_WHITE.get_gdk_color())
-        self.add(background_box)
+        # GTK4: Gtk.EventBox → Gtk.Box + CSS
+        background_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        bg_css = Gtk.CssProvider()
+        bg_css.load_from_data(
+            b"box { background-color: %s; }" %
+            style.COLOR_WHITE.get_html().encode())
+        background_box.get_style_context().add_provider(
+            bg_css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        background_box.set_hexpand(True)
+        background_box.set_vexpand(True)
+        self.append(background_box)
 
-        alignment = Gtk.Alignment.new(0.5, 0.5, 0.1, 0.1)
-        background_box.add(alignment)
+        # GTK4: Gtk.Alignment → Gtk.Box with alignment
+        inner_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        inner_box.set_halign(Gtk.Align.CENTER)
+        inner_box.set_valign(Gtk.Align.CENTER)
+        inner_box.set_hexpand(True)
+        inner_box.set_vexpand(True)
+        background_box.append(inner_box)
 
-        box = Gtk.VBox()
-        alignment.add(box)
+        # GTK4: Gtk.VBox → Gtk.Box(VERTICAL)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        inner_box.append(box)
 
         icon = Icon(pixel_size=style.LARGE_ICON_SIZE,
                     icon_name='activity-journal',
                     stroke_color=style.COLOR_BUTTON_GREY.get_svg(),
                     fill_color=style.COLOR_TRANSPARENT.get_svg())
-        box.pack_start(icon, expand=True, fill=False, padding=0)
+        box.append(icon)
 
         label = Gtk.Label()
         color = style.COLOR_BUTTON_GREY.get_html()
         label.set_markup('<span weight="bold" color="%s">%s</span>' % (
             color, GLib.markup_escape_text(message)))
-        box.pack_start(label, expand=True, fill=False, padding=0)
+        box.append(label)
 
         if not self.get_projects_view_active():
             if show_clear_query:
-                button_box = Gtk.HButtonBox()
-                button_box.set_layout(Gtk.ButtonBoxStyle.CENTER)
-                box.pack_start(button_box, False, True, 0)
-                button_box.show()
+                # GTK4: Gtk.HButtonBox → Gtk.Box
+                button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+                button_box.set_halign(Gtk.Align.CENTER)
+                box.append(button_box)
+                button_box.set_visible(True)
 
                 button = Gtk.Button(label=_('Clear search'))
                 button.connect('clicked', self.__clear_button_clicked_cb)
-                button.props.image = Icon(icon_name='dialog-cancel',
-                                          pixel_size=style.SMALL_ICON_SIZE)
-                button_box.pack_start(button, expand=True, fill=False,
-                                      padding=0)
+                button.set_child(Icon(icon_name='dialog-cancel',
+                                      pixel_size=style.SMALL_ICON_SIZE))
+                button_box.append(button)
 
-        background_box.show_all()
+        background_box.set_visible(True)
 
     def __clear_button_clicked_cb(self, button):
         self.emit('clear-clicked')
 
     def _clear_message(self):
-        if self.get_child() == self._scrolled_window:
+        if self.get_first_child() == self._scrolled_window:
             return
-        self.remove(self.get_child())
-        self.add(self._scrolled_window)
-        self._scrolled_window.show()
+        child = self.get_first_child()
+        while child is not None:
+            next_c = child.get_next_sibling()
+            self.remove(child)
+            child = next_c
+        self.append(self._scrolled_window)
+        self._scrolled_window.set_visible(True)
 
     def update_dates(self):
         if not self.tree_view.get_realized():
@@ -731,11 +751,20 @@ class ListView(BaseListView):
         BaseListView.__init__(self, journalactivity, enable_multi_operations)
         self._is_dragging = False
 
-        self.tree_view.connect('drag-begin', self.__drag_begin_cb)
-        self.tree_view.connect('drag-data-get', self.__drag_data_get_cb)
-        self.tree_view.connect('button-release-event',
-                               self.__button_release_event_cb)
-        self.tree_view.connect('key-press-event', self._key_press_event_cb)
+        self._drag_source = Gtk.DragSource()
+        self._drag_source.set_actions(Gdk.DragAction.COPY)
+        self._drag_source.connect('prepare', self.__drag_prepare_cb)
+        self._drag_source.connect('drag-begin', self.__drag_begin_cb)
+        self.tree_view.add_controller(self._drag_source)
+        # GTK4: button-release-event → GestureClick
+        click = Gtk.GestureClick()
+        click.connect('released', self.__button_release_cb)
+        self.tree_view.add_controller(click)
+
+        # GTK4: key-press-event → EventControllerKey
+        key_ctrl = Gtk.EventControllerKey()
+        key_ctrl.connect('key-pressed', self._key_pressed_cb)
+        self.tree_view.add_controller(key_ctrl)
 
         self.cell_title.connect('edited', self.__cell_title_edited_cb)
         self.cell_title.connect('editing-canceled', self.__editing_canceled_cb)
@@ -751,21 +780,22 @@ class ListView(BaseListView):
         column.pack_start(cell_detail, True)
         self.tree_view.append_column(column)
 
-    def _key_press_event_cb(self, tree_view, event):
+    def _key_pressed_cb(self, controller, keyval, keycode, state):
         '''
         Adds keyboard accessibility to the journal.
         Activity can be resumed by pressing 'Enter' key.
         Entry can be renamed by pressing 'Ctrl' + 'F2' keys
         Detail View can be opened with 'Right' arrow key.
         '''
-        keyname = Gdk.keyval_name(event.keyval)
+        keyname = Gdk.keyval_name(keyval)
         path, col = self.tree_view.get_cursor()
 
         if self.tree_view.has_focus():
             if keyname == 'Return':
                 self.__icon_clicked_cb(None, path)
+                return True
 
-            if event.state & Gdk.ModifierType.CONTROL_MASK and keyname == 'F2':
+            if state & Gdk.ModifierType.CONTROL_MASK and keyname == 'F2':
                 row = self.tree_view.get_model()[path]
                 metadata = model.get(row[ListModel.COLUMN_UID])
                 self.cell_title.props.editable = model.is_editable(metadata)
@@ -774,43 +804,46 @@ class ListView(BaseListView):
                     self.emit('title-edit-started')
 
                 column = self.tree_view.get_column(3)
-                tree_view.set_cursor_on_cell(path, column, self.cell_title,
+                self.tree_view.set_cursor_on_cell(path, column, self.cell_title,
                                          start_editing=True)
+                return True
 
             if keyname == 'Right':
                 tree_iter = self._model.get_iter(path)
                 uid = self._model[tree_iter][ListModel.COLUMN_UID]
                 self.emit('detail-clicked', uid)
+                return True
+        return False
 
 
     def is_dragging(self):
         return self._is_dragging
 
-    def __drag_begin_cb(self, widget, drag_context):
-        path, _column = self.tree_view.get_cursor()
-        if path is None:
-            return
-
+    def __drag_prepare_cb(self, source, x, y):
+        path_pos = self.tree_view.get_path_at_pos(int(x), int(y))
+        if path_pos is None:
+            return None
+        path, _column, _x, _y = path_pos
         row = self.tree_view.get_model()[path]
-        _pixbuf = GdkPixbuf.Pixbuf.new_from_file(row[ListModel.COLUMN_ICON])
-        self.tree_view.drag_source_set_icon_pixbuf(_pixbuf)
-        self._is_dragging = True
+        uid = row[ListModel.COLUMN_UID]
+        return Gdk.ContentProvider.new_for_value(uid)
 
-    def __drag_data_get_cb(self, widget, context, selection, info, time):
-        # HACK:  Gtk.TreeDragSource does not work for us on Gtk 3.16+, so
-        #        use our drag source code instead
+    def __drag_begin_cb(self, source, drag):
         path, _column = self.tree_view.get_cursor()
-        model = self.tree_view.get_model()
-        model.do_drag_data_get(path, selection)
+        if path is not None:
+            # GTK4: set_icon is now on the drag object, but source.set_icon
+            # is also available in some bindings.
+            self._is_dragging = True
 
-    def __button_release_event_cb(self, tree_view, event):
+    def __button_release_cb(self, gesture, n_press, x, y):
         try:
             if self._is_dragging:
                 return
         finally:
             self._is_dragging = False
 
-        pos = tree_view.get_path_at_pos(int(event.x), int(event.y))
+        tree_view = gesture.get_widget()
+        pos = tree_view.get_path_at_pos(int(x), int(y))
         if pos is None:
             return
 

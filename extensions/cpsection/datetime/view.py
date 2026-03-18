@@ -35,7 +35,10 @@ class TimeZone(SectionView):
         self._zone_sid = 0
         self._cursor_change_handler = None
 
-        self.set_border_width(style.DEFAULT_SPACING * 2)
+        self.set_margin_start(style.DEFAULT_SPACING * 2)
+        self.set_margin_end(style.DEFAULT_SPACING * 2)
+        self.set_margin_top(style.DEFAULT_SPACING * 2)
+        self.set_margin_bottom(style.DEFAULT_SPACING * 2)
         self.set_spacing(style.DEFAULT_SPACING)
 
         self.connect('realize', self.__realize_cb)
@@ -44,25 +47,25 @@ class TimeZone(SectionView):
         self._entry.set_icon_from_name(iconentry.ICON_ENTRY_PRIMARY,
                                        'entry-search')
         self._entry.add_clear_button()
-        self.pack_start(self._entry, False, False, 0)
-        self._entry.show()
+        self.append(self._entry)
+        self._entry.set_visible(True)
 
         self._scrolled_window = Gtk.ScrolledWindow()
         self._scrolled_window.set_policy(Gtk.PolicyType.NEVER,
                                          Gtk.PolicyType.AUTOMATIC)
-        self._scrolled_window.set_shadow_type(Gtk.ShadowType.IN)
+        # self._scrolled_window.set_has_frame(True) # Removed in GTK4
 
         self._store = Gtk.ListStore(GObject.TYPE_STRING)
         zones = model.read_all_timezones()
         for zone in zones:
             self._store.append([zone])
 
-        self._treeview = Gtk.TreeView(self._store)
+        self._treeview = Gtk.TreeView(model=self._store)
         self._treeview.set_search_entry(self._entry)
         self._treeview.set_search_equal_func(self._search, None)
         self._treeview.set_search_column(0)
-        self._scrolled_window.add(self._treeview)
-        self._treeview.show()
+        self._scrolled_window.set_child(self._treeview)
+        self._treeview.set_visible(True)
 
         self._timezone_column = Gtk.TreeViewColumn(_('Timezone'))
         self._cell = Gtk.CellRendererText()
@@ -71,18 +74,22 @@ class TimeZone(SectionView):
         self._timezone_column.set_sort_column_id(0)
         self._treeview.append_column(self._timezone_column)
 
-        self.pack_start(self._scrolled_window, True, True, 0)
-        self._scrolled_window.show()
+        self.append(self._scrolled_window)
+        self._scrolled_window.set_hexpand(True)
+        self._scrolled_window.set_vexpand(True)
+        self._scrolled_window.set_visible(True)
 
-        self._zone_alert_box = Gtk.HBox(spacing=style.DEFAULT_SPACING)
-        self.pack_start(self._zone_alert_box, False, False, 0)
+        self._zone_alert_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self._zone_alert_box.set_spacing(style.DEFAULT_SPACING)
+        self.append(self._zone_alert_box)
 
         self._zone_alert = InlineAlert()
-        self._zone_alert_box.pack_start(self._zone_alert, True, True, 0)
+        self._zone_alert_box.append(self._zone_alert)
+        self._zone_alert.set_hexpand(True)
         if 'zone' in self.restart_alerts:
             self._zone_alert.props.msg = self.restart_msg
-            self._zone_alert.show()
-        self._zone_alert_box.show()
+            self._zone_alert.set_visible(True)
+        self._zone_alert_box.set_visible(True)
 
         self.setup()
 
@@ -103,7 +110,7 @@ class TimeZone(SectionView):
     def undo(self):
         self._treeview.disconnect(self._cursor_change_handler)
         self._model.undo()
-        self._zone_alert.hide()
+        self._zone_alert.set_visible(False)
 
     def __realize_cb(self, widget):
         self._entry.grab_focus()
@@ -133,5 +140,5 @@ class TimeZone(SectionView):
         self.restart_alerts.append('zone')
         self.needs_restart = True
         self._zone_alert.props.msg = self.restart_msg
-        self._zone_alert.show()
+        self._zone_alert.set_visible(True)
         return False

@@ -487,16 +487,18 @@ class BundleRegistry(GObject.GObject):
         after it is installed.
         """
         result = [None]
-        self.install_async(bundle, self._sync_install_cb, result,
-                           force_downgrade)
-        while result[0] is None:
-            Gtk.main_iteration()
+        loop = GLib.MainLoop()
+
+        def callback(bundle, res, user_data):
+            result[0] = res
+            loop.quit()
+
+        self.install_async(bundle, callback, None, force_downgrade)
+        loop.run()
 
         if isinstance(result[0], Exception):
             raise result[0]
         return result[0]
-
-    def _sync_install_cb(self, bundle, result, user_data):
         # Async callback for install()
         user_data[0] = result
 

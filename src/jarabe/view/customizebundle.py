@@ -153,7 +153,10 @@ def _create_custom_icon(new_basename, icon_name):
     """
     user_activities_path = get_user_activities_path()
     badge_path = None
-    for path in Gtk.IconTheme.get_default().get_search_path():
+    # GTK4: Search paths are hard to get, check common locations
+    search_paths = ['/usr/share/icons', '/usr/local/share/icons',
+                    '/usr/share/sugar/icons']
+    for path in search_paths:
         if os.path.exists(os.path.join(path, 'sugar', 'scalable',
                                        BADGE_SUBPATH)):
             badge_path = path

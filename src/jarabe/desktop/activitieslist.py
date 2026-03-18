@@ -59,9 +59,6 @@ class ActivitiesTreeView(Gtk.TreeView):
         self._query = ''
 
         self.set_headers_visible(False)
-        self.add_events(Gdk.EventMask.BUTTON_PRESS_MASK |
-                        Gdk.EventMask.TOUCH_MASK |
-                        Gdk.EventMask.BUTTON_RELEASE_MASK)
         selection = self.get_selection()
         selection.set_mode(Gtk.SelectionMode.NONE)
 
@@ -143,19 +140,11 @@ class ActivitiesTreeView(Gtk.TreeView):
         self.button_reslease_handler = None
         self.icon_clicked_handler = None
         self.row_activated_handler = None
-        if hasattr(self.props, 'activate_on_single_click'):
-            # Gtk+ 3.8 and later
-            self.props.activate_on_single_click = True
-            self.row_activated_handler = self.connect('row-activated',
-                                                      self.__row_activated_cb)
-        else:
-            self.icon_clicked_handler = self.cell_icon.connect(
-                'clicked', self.__icon_clicked_cb)
-            self.button_press_handler = self.connect(
-                'button-press-event', self.__button_press_cb)
-            self.button_reslease_handler = self.connect(
-                'button-release-event', self.__button_release_cb)
-            self._row_activated_armed_path = None
+
+        # GTK4: Use activate_on_single_click (available since GTK 3.8)
+        self.props.activate_on_single_click = True
+        self.row_activated_handler = self.connect('row-activated',
+                                                  self.__row_activated_cb)
 
     def __favorite_set_data_cb(self, column, cell, model, tree_iter, data):
         favorite = \
@@ -174,60 +163,9 @@ class ActivitiesTreeView(Gtk.TreeView):
             not row[self._model.column_favorites[cell.favorite_view]],
             cell.favorite_view)
 
-    def __icon_clicked_cb(self, cell, path):
-        """
-        A click on activity icon cell is to start an activity.
-        """
-        logging.debug('__icon_clicked_cb')
-        self._start_activity(path)
-
     def __row_activated_cb(self, treeview, path, col):
-        """
-        A click on cells other than the favorite toggle is to start an
-        activity.  Gtk+ 3.8 and later.
-        """
-        logging.debug('__row_activated_cb')
         if col is not treeview.get_column(0):
             self._start_activity(path)
-
-    def __button_to_path(self, event, event_type):
-        if event.window != self.get_bin_window() or \
-           event.button != 1 or \
-           event.type != event_type:
-            return None
-
-        pos = self.get_path_at_pos(int(event.x), int(event.y))
-        if pos is None:
-            return None
-
-        path, column, x_, y_ = pos
-        if column == self._icon_column:
-            return None
-
-        if column in self._favorite_columns:
-            return None
-
-        return path
-
-    def __button_press_cb(self, widget, event):
-        logging.debug('__button_press_cb')
-        path = self.__button_to_path(event, Gdk.EventType.BUTTON_PRESS)
-        if path is None:
-            return
-
-        self._row_activated_armed_path = path
-
-    def __button_release_cb(self, widget, event):
-        logging.debug('__button_release_cb')
-        path = self.__button_to_path(event, Gdk.EventType.BUTTON_RELEASE)
-        if path is None:
-            return
-
-        if self._row_activated_armed_path != path:
-            return
-
-        self._start_activity(path)
-        self._row_activated_armed_path = None
 
     def _start_activity(self, path):
         model = self.get_model()
@@ -239,10 +177,6 @@ class ActivitiesTreeView(Gtk.TreeView):
         misc.launch(bundle)
 
     def set_filter(self, query):
-        """Set a new query and refilter the model, return the number
-        of matching activities.
-
-        """
         if isinstance(query, bytes):
             query = query.decode()
         self._query = normalize_string(query)
@@ -464,50 +398,58 @@ class CellRendererActivityIcon(CellRendererIcon):
         self.props.prelit_fill_color = prelit_color.get_fill_color()
 
 
-class ClearMessageBox(Gtk.EventBox):
+class ClearMessageBox(Gtk.Box):
 
     def __init__(self, message, button_callback):
-        Gtk.EventBox.__init__(self)
+        # GTK4: Gtk.EventBox → Gtk.Box
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
 
-        self.modify_bg(Gtk.StateType.NORMAL,
-                       style.COLOR_WHITE.get_gdk_color())
+        # GTK4: Use CSS for background
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_data(
+            b"box { background-color: %s; }" %
+            style.COLOR_WHITE.get_html().encode())
+        self.get_style_context().add_provider(
+            css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
-        alignment = Gtk.Alignment.new(0.5, 0.5, 0.1, 0.1)
-        self.add(alignment)
-        alignment.show()
-
-        box = Gtk.VBox()
-        alignment.add(box)
-        box.show()
+        # GTK4: Gtk.Alignment → Box with alignment props
+        center_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        center_box.set_halign(Gtk.Align.CENTER)
+        center_box.set_valign(Gtk.Align.CENTER)
+        center_box.set_hexpand(True)
+        center_box.set_vexpand(True)
+        self.append(center_box)
+        center_box.set_visible(True)
 
         icon = Icon(pixel_size=style.LARGE_ICON_SIZE,
                     icon_name='system-search',
                     stroke_color=style.COLOR_BUTTON_GREY.get_svg(),
                     fill_color=style.COLOR_TRANSPARENT.get_svg())
-        box.pack_start(icon, expand=True, fill=False, padding=0)
-        icon.show()
+        center_box.append(icon)
+        icon.set_visible(True)
 
         label = Gtk.Label()
         color = style.COLOR_BUTTON_GREY.get_html()
         label.set_markup('<span weight="bold" color="%s">%s</span>' % (
             color, GLib.markup_escape_text(message)))
-        box.pack_start(label, expand=True, fill=False, padding=0)
-        label.show()
+        center_box.append(label)
+        label.set_visible(True)
 
-        button_box = Gtk.HButtonBox()
-        button_box.set_layout(Gtk.ButtonBoxStyle.CENTER)
-        box.pack_start(button_box, False, True, 0)
-        button_box.show()
+        # GTK4: Gtk.HButtonBox → Gtk.Box
+        button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        button_box.set_halign(Gtk.Align.CENTER)
+        center_box.append(button_box)
+        button_box.set_visible(True)
 
         button = Gtk.Button(label=_('Clear search'))
         button.connect('clicked', button_callback)
-        button.props.image = Icon(icon_name='dialog-cancel',
-                                  pixel_size=style.SMALL_ICON_SIZE)
-        button_box.pack_start(button, expand=True, fill=False, padding=0)
-        button.show()
+        button.set_child(Icon(icon_name='dialog-cancel',
+                              pixel_size=style.SMALL_ICON_SIZE))
+        button_box.append(button)
+        button.set_visible(True)
 
 
-class ActivitiesList(Gtk.VBox):
+class ActivitiesList(Gtk.Box):
     __gtype_name__ = 'SugarActivitiesList'
 
     __gsignals__ = {
@@ -517,34 +459,41 @@ class ActivitiesList(Gtk.VBox):
     def __init__(self):
         logging.debug('STARTUP: Loading the activities list')
 
-        Gtk.VBox.__init__(self)
+        # GTK4: Gtk.VBox → Gtk.Box(VERTICAL)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
 
         self._scrolled_window = Gtk.ScrolledWindow()
         self._scrolled_window.set_can_focus(False)
         self._scrolled_window.set_policy(Gtk.PolicyType.NEVER,
                                          Gtk.PolicyType.AUTOMATIC)
-        self._scrolled_window.set_shadow_type(Gtk.ShadowType.NONE)
-        self._scrolled_window.connect('key-press-event',
-                                      self.__key_press_event_cb)
-        self.pack_start(self._scrolled_window, True, True, 0)
-        self._scrolled_window.show()
+
+        # GTK4: key-press-event → EventControllerKey
+        key_controller = Gtk.EventControllerKey()
+        key_controller.connect('key-pressed',
+                               self.__key_pressed_cb)
+        self._scrolled_window.add_controller(key_controller)
+
+        self.append(self._scrolled_window)
+        self._scrolled_window.set_hexpand(True)
+        self._scrolled_window.set_vexpand(True)
+        self._scrolled_window.set_visible(True)
 
         self._tree_view = ActivitiesTreeView()
         self._tree_view.connect('erase-activated', self.__erase_activated_cb)
-        self._scrolled_window.add(self._tree_view)
-        self._tree_view.show()
+        self._scrolled_window.set_child(self._tree_view)
+        self._tree_view.set_visible(True)
         scrolling_detector = ScrollingDetector(self._scrolled_window)
         self._tree_view.connect_to_scroller(scrolling_detector)
 
         self._alert = None
         self._clear_message_box = None
+        self._showing_scrolled = True
 
         desktop_model = desktop.get_model()
         desktop_model.connect('desktop-view-icons-changed',
                               self.__desktop_view_icons_changed_cb)
 
     def grab_focus(self):
-        # overwrite grab focus in order to grab focus from the parent
         self._tree_view.grab_focus()
 
     def set_filter(self, query):
@@ -555,16 +504,16 @@ class ActivitiesList(Gtk.VBox):
             self._hide_clear_message()
 
     def __desktop_view_icons_changed_cb(self, model):
-        self._tree_view.destroy()
+        self._scrolled_window.set_child(None)
         self._tree_view = ActivitiesTreeView()
         self._tree_view.connect('erase-activated', self.__erase_activated_cb)
-        self._scrolled_window.add(self._tree_view)
-        self._tree_view.show()
+        self._scrolled_window.set_child(self._tree_view)
+        self._tree_view.set_visible(True)
 
-    def __key_press_event_cb(self, scrolled_window, event):
-        keyname = Gdk.keyval_name(event.keyval)
+    def __key_pressed_cb(self, controller, keyval, keycode, state):
+        keyname = Gdk.keyval_name(keyval)
 
-        vadjustment = scrolled_window.props.vadjustment
+        vadjustment = self._scrolled_window.props.vadjustment
         if keyname == 'Up':
             if vadjustment.props.value > vadjustment.props.lower:
                 vadjustment.props.value -= vadjustment.props.step_increment
@@ -580,38 +529,42 @@ class ActivitiesList(Gtk.VBox):
         return True
 
     def _show_clear_message(self):
-        if self._clear_message_box in self.get_children():
+        if self._clear_message_box is not None and not self._showing_scrolled:
             return
-        if self._scrolled_window in self.get_children():
+        if self._showing_scrolled:
             self.remove(self._scrolled_window)
+            self._showing_scrolled = False
 
         self._clear_message_box = ClearMessageBox(
             message=_('No matching activities'),
             button_callback=self.__clear_button_clicked_cb)
 
-        self.pack_end(self._clear_message_box, True, True, 0)
-        self._clear_message_box.show()
+        self.append(self._clear_message_box)
+        self._clear_message_box.set_hexpand(True)
+        self._clear_message_box.set_vexpand(True)
+        self._clear_message_box.set_visible(True)
 
     def __clear_button_clicked_cb(self, button):
         self.emit('clear-clicked')
 
     def _hide_clear_message(self):
-        if self._scrolled_window in self.get_children():
+        if self._showing_scrolled:
             return
-        if self._clear_message_box in self.get_children():
+        if self._clear_message_box is not None:
             self.remove(self._clear_message_box)
+            self._clear_message_box = None
 
-        self._clear_message_box = None
-
-        self.pack_end(self._scrolled_window, True, True, 0)
-        self._scrolled_window.show()
+        self.append(self._scrolled_window)
+        self._scrolled_window.set_hexpand(True)
+        self._scrolled_window.set_vexpand(True)
+        self._scrolled_window.set_visible(True)
+        self._showing_scrolled = True
 
     def add_alert(self, alert):
         if self._alert is not None:
             self.remove_alert()
         self._alert = alert
-        self.pack_start(alert, False, True, 0)
-        self.reorder_child(alert, 0)
+        self.prepend(alert)
 
     def remove_alert(self):
         self.remove(self._alert)
@@ -681,11 +634,11 @@ class ActivityListPalette(ActivityPalette):
                 Icon(icon_name=desktop.get_favorite_icons()[i],
                      pixel_size=style.SMALL_ICON_SIZE))
             self._favorite_items[i].set_image(self._favorite_icons[i])
-            self._favorite_icons[i].show()
+            self._favorite_icons[i].set_visible(True)
             self._favorite_items[i].connect(
                 'activate', self.__change_favorite_activate_cb, i)
             self.menu_box.append_item(self._favorite_items[i])
-            self._favorite_items[i].show()
+            self._favorite_items[i].set_visible(True)
 
         if activity_info.is_user_activity():
             self._add_erase_option(registry, activity_info)
@@ -704,7 +657,7 @@ class ActivityListPalette(ActivityPalette):
         menu_item = PaletteMenuItem(_('Erase'), 'list-remove')
         menu_item.connect('activate', self.__erase_activate_cb)
         self.menu_box.append_item(menu_item)
-        menu_item.show()
+        menu_item.set_visible(True)
 
         if not os.access(activity_info.get_path(), os.W_OK) or \
            registry.is_activity_protected(self._bundle_id):

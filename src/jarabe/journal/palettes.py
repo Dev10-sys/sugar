@@ -241,7 +241,7 @@ class ObjectPalette(Palette):
         Palette.popup(self, immediate)
 
 
-class CopyMenu(Gtk.Menu):
+class CopyMenu(Gtk.Box):
     __gtype_name__ = 'JournalCopyMenu'
 
     __gsignals__ = {
@@ -250,7 +250,7 @@ class CopyMenu(Gtk.Menu):
     }
 
     def __init__(self, journalactivity, get_uid_list_cb):
-        Gtk.Menu.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
         CopyMenuBuilder(journalactivity, get_uid_list_cb,
                         self.__volume_error_cb, self)
 
@@ -326,9 +326,12 @@ class CopyMenuBuilder():
                                           self._get_uid_list_cb))
 
     def update_mount_point(self):
-        for menu_item in self._menu.get_children():
-            if isinstance(menu_item, MenuItem):
-                self._menu.remove(menu_item)
+        child = self._menu.get_first_child()
+        while child:
+            next_child = child.get_next_sibling()
+            if isinstance(child, MenuItem):
+                self._menu.remove(child)
+            child = next_child
         self._create_menu_items()
 
     def __mount_added_cb(self, volume_monitor, mount):
@@ -436,7 +439,8 @@ class ClipboardMenu(MenuItem):
         self.connect('activate', self.__copy_to_clipboard_cb)
 
     def __copy_to_clipboard_cb(self, menu_item):
-        clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+        display = Gdk.Display.get_default()
+        clipboard = display.get_clipboard()
         uid_list = self._get_uid_list_cb()
         if len(uid_list) == 1:
             uid = uid_list[0]
@@ -445,23 +449,12 @@ class ClipboardMenu(MenuItem):
                 logging.warn('Entries without a file cannot be copied.')
                 self.emit('volume-error',
                           _('Entries without a file cannot be copied.'),
-                          _('Warning'))
+                           _('Warning'))
                 return
 
-            # XXX SL#4307 - until set_with_data bindings are fixed upstream
-            if hasattr(clipboard, 'set_with_data'):
-                clipboard.set_with_data(
-                    [Gtk.TargetEntry.new('text/uri-list', 0, 0)],
-                    self.__clipboard_get_func_cb,
-                    self.__clipboard_clear_func_cb,
-                    None)
-            else:
-                SugarExt.clipboard_set_with_data(
-                    clipboard,
-                    [Gtk.TargetEntry.new('text/uri-list', 0, 0)],
-                    self.__clipboard_get_func_cb,
-                    self.__clipboard_clear_func_cb,
-                    None)
+            uri = 'file://' + os.path.abspath(file_path)
+            content = Gdk.ContentProvider.new_for_value(uri)
+            clipboard.set_content(content)
 
     def __clipboard_get_func_cb(self, clipboard, selection_data, info, data):
         # Get hold of a reference so the temp file doesn't get deleted
@@ -475,7 +468,7 @@ class ClipboardMenu(MenuItem):
         self._temp_file_path = None
 
 
-class FriendsMenu(Gtk.Menu):
+class FriendsMenu(Gtk.Box):
     __gtype_name__ = 'JournalFriendsMenu'
 
     __gsignals__ = {
@@ -484,7 +477,7 @@ class FriendsMenu(Gtk.Menu):
     }
 
     def __init__(self):
-        Gtk.Menu.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
 
         if filetransfer.file_transfer_available():
             friends_model = friends.get_model()
@@ -498,7 +491,8 @@ class FriendsMenu(Gtk.Menu):
                     self.append(menu_item)
                     menu_item.show()
 
-            if not self.get_children():
+            child = self.get_first_child()
+            if not child:
                 menu_item = MenuItem(_('No friends present'))
                 menu_item.set_sensitive(False)
                 self.append(menu_item)
@@ -513,11 +507,11 @@ class FriendsMenu(Gtk.Menu):
         self.emit('friend-selected', friend)
 
 
-class StartWithMenu(Gtk.Menu):
+class StartWithMenu(Gtk.Box):
     __gtype_name__ = 'JournalStartWithMenu'
 
     def __init__(self, metadata):
-        Gtk.Menu.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
 
         self._metadata = metadata
 

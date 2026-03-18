@@ -1,7 +1,12 @@
 # Generic
 
 *.pyc
+__pycache__/
 *~
+*.log
+*.code-workspace
+.vscode/
+.idea/
 Makefile
 Makefile.in
 *.deps

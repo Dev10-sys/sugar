@@ -130,7 +130,8 @@ class SessionManager(GObject.GObject):
                     return
 
         SugarExt.xsmp_shutdown()
-        Gtk.main_quit()
+        import sys
+        sys.exit(0)
 
 
 def get_session_manager():

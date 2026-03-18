@@ -18,7 +18,6 @@ import logging
 
 from gi.repository import Gtk
 from gi.repository import Gdk
-from gi.repository import SugarExt
 from gi.repository import GLib
 
 from sugar3.graphics.radiotoolbutton import RadioToolButton
@@ -54,7 +53,7 @@ class ClipboardIcon(RadioToolButton):
         color = profile.get_color()
         self._icon.props.xo_color = color
         self.set_icon_widget(self._icon)
-        self._icon.show()
+        self._icon.set_visible(True)
 
         cb_service = clipboard.get_instance()
         cb_service.connect('object-state-changed',
@@ -62,7 +61,12 @@ class ClipboardIcon(RadioToolButton):
         cb_service.connect('object-selected', self._object_selected_cb)
 
         child = self.get_child()
-        child.connect('drag-data-get', self._drag_data_get_cb)
+        # GTK4: Use DragSource instead of legacy drag_source_set
+        self._drag_source = Gtk.DragSource()
+        self._drag_source.connect('prepare', self._drag_prepare_cb)
+        self._drag_source.connect('drag-begin', self._drag_begin_handler)
+        if child:
+            child.add_controller(self._drag_source)
         self.connect('notify::active', self._notify_active_cb)
 
     def create_palette(self):
@@ -73,14 +77,19 @@ class ClipboardIcon(RadioToolButton):
     def get_object_id(self):
         return self._cb_object.get_id()
 
-    def _drag_data_get_cb(self, widget, context, selection, target_type,
-                          event_time):
-        target_atom = selection.get_target()
-        target_name = target_atom.name()
-        logging.debug('_drag_data_get_cb: requested target %s', target_name)
-        data = self._cb_object.get_formats()[target_name].get_data()
-        selection.set(target_atom, 8, data)
-        GLib.source_remove(self._timeout_id)
+    def _drag_prepare_cb(self, drag_source, x, y):
+        """GTK4: Prepare drag data"""
+        formats = self._cb_object.get_formats()
+        if not formats:
+            return None
+        # Get the first available format's data
+        for format_type, format_obj in formats.items():
+            data = format_obj.get_data()
+            if data:
+                content = Gdk.ContentProvider.new_for_bytes(
+                    format_type, GLib.Bytes.new(data))
+                return content
+        return None
 
     def _put_in_clipboard(self):
         logging.debug('ClipboardIcon._put_in_clipboard')
@@ -89,42 +98,26 @@ class ClipboardIcon(RadioToolButton):
             raise ValueError('Object is not complete, cannot be put into the'
                              ' clipboard.')
 
-        targets = self._get_targets()
-        if targets:
-            x_clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+        # GTK4: Use Display clipboard API
+        display = Gdk.Display.get_default()
+        x_clipboard = display.get_clipboard()
 
-            # XXX SL#4307 - until set_with_data bindings are fixed upstream
-            if hasattr(x_clipboard, 'set_with_data'):
-                stored = x_clipboard.set_with_data(
-                    targets,
-                    self._clipboard_data_get_cb,
-                    self._clipboard_clear_cb,
-                    targets)
-            else:
-                stored = SugarExt.clipboard_set_with_data(
-                    x_clipboard,
-                    targets,
-                    self._clipboard_data_get_cb,
-                    self._clipboard_clear_cb,
-                    targets)
+        formats = self._cb_object.get_formats()
+        if formats:
+            # Get the most significant format and set its data
+            for format_type, format_obj in formats.items():
+                data = format_obj.get_data()
+                if data:
+                    if isinstance(data, str):
+                        x_clipboard.set_text(data)
+                    else:
+                        content = Gdk.ContentProvider.new_for_bytes(
+                            format_type, GLib.Bytes.new(data))
+                        x_clipboard.set_content(content)
+                    self.owns_clipboard = True
+                    break
 
-            if not stored:
-                logging.error('GtkClipboard.set_with_data failed!')
-            else:
-                self.owns_clipboard = True
-
-    def _clipboard_data_get_cb(self, x_clipboard, selection, info, targets):
-        selection_target = selection.get_target()
-        entries_targets = [entry.target for entry in targets]
-        if not str(selection_target) in entries_targets:
-            logging.warning('ClipboardIcon._clipboard_data_get_cb: asked %s'
-                            ' but only have %r.', selection_target,
-                            entries_targets)
-            return
-        data = self._cb_object.get_formats()[str(selection_target)].get_data()
-        selection.set(selection_target, 8, data)
-
-    def _clipboard_clear_cb(self, x_clipboard, targets):
+    def _clipboard_clear_cb(self):
         logging.debug('ClipboardIcon._clipboard_clear_cb')
         self.owns_clipboard = False
 
@@ -139,11 +132,7 @@ class ClipboardIcon(RadioToolButton):
         else:
             self._icon.props.icon_name = 'application-octet-stream'
 
-        child = self.get_child()
-        child.connect('drag-begin', self._drag_begin_cb)
-        child.drag_source_set(Gdk.ModifierType.BUTTON1_MASK,
-                              self._get_targets(),
-                              Gdk.DragAction.COPY)
+        # GTK4: DragSource is already set up in __init__
 
         if cb_object.get_percent() == 100:
             self.props.sensitive = True
@@ -172,33 +161,36 @@ class ClipboardIcon(RadioToolButton):
         frame = jarabe.frame.get_view()
         self._timeout_id = frame.add_notification(
             self._notif_icon, Gtk.CornerType.BOTTOM_LEFT)
-        self._notif_icon.connect('drag-data-get', self._drag_data_get_cb)
-        self._notif_icon.connect('drag-begin', self._drag_begin_cb)
-        self._notif_icon.drag_source_set(Gdk.ModifierType.BUTTON1_MASK,
-                                         self._get_targets(),
-                                         Gdk.DragAction.COPY)
 
-    def _drag_begin_cb(self, widget, context):
-        # TODO: We should get the pixbuf from the icon, with colors, etc.
+        # GTK4: Set up DragSource on notification icon
+        notif_drag_source = Gtk.DragSource()
+        notif_drag_source.connect('prepare', self._drag_prepare_cb)
+        notif_drag_source.connect('drag-begin', self._drag_begin_handler)
+        self._notif_icon.add_controller(notif_drag_source)
+
+    def _drag_begin_handler(self, drag_source, drag):
+        """GTK4: Handle drag begin"""
         frame = jarabe.frame.get_view()
         self._timeout_id = GLib.timeout_add(
             jarabe.frame.frame.NOTIFICATION_DURATION,
             lambda: frame.remove_notification(self._notif_icon))
-        icon_theme = Gtk.IconTheme.get_default()
-        pixbuf = icon_theme.load_icon(self._icon.props.icon_name,
-                                      style.STANDARD_ICON_SIZE, 0)
-        Gtk.drag_set_icon_pixbuf(context, pixbuf, hot_x=pixbuf.props.width / 2,
-                                 hot_y=pixbuf.props.height / 2)
+
+        # GTK4: Use IconTheme from display
+        display = Gdk.Display.get_default()
+        icon_theme = Gtk.IconTheme.get_for_display(display)
+        icon_paintable = icon_theme.lookup_icon(
+            self._icon.props.icon_name,
+            None,  # fallbacks
+            style.STANDARD_ICON_SIZE,
+            1,  # scale
+            Gtk.TextDirection.NONE,
+            Gtk.IconLookupFlags.FORCE_REGULAR)
+        drag_source.set_icon(icon_paintable,
+                             style.STANDARD_ICON_SIZE // 2,
+                             style.STANDARD_ICON_SIZE // 2)
 
     def _notify_active_cb(self, widget, pspec):
         if self.props.active:
             self._put_in_clipboard()
         else:
             self.owns_clipboard = False
-
-    def _get_targets(self):
-        targets = []
-        for format_type in list(self._cb_object.get_formats().keys()):
-            targets.append(Gtk.TargetEntry.new(format_type,
-                                               Gtk.TargetFlags.SAME_APP, 0))
-        return targets

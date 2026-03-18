@@ -17,6 +17,7 @@ import os
 import sys
 
 from gi.repository import Gtk
+from gi.repository import GLib
 from dbus.mainloop.glib import DBusGMainLoop
 DBusGMainLoop(set_as_default=True)
 
@@ -45,10 +46,11 @@ window = Gtk.Window()
 toolbox = DetailToolbox(JournalMock())
 toolbox.show()
 
-window.add(toolbox)
-window.show()
+window.set_child(toolbox)
+window.present()
 
 toolbox.set_metadata({'mountpoint': '/', 'uid': '', 'title': 'mock'})
-toolbox._copy.palette.popup(immediate=True)
+toolbox._copy.get_palette().popup()
 
-Gtk.main()
+loop = GLib.MainLoop()
+loop.run()

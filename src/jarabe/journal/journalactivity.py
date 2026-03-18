@@ -22,7 +22,6 @@ import time
 
 from gi.repository import Gtk
 from gi.repository import Gdk
-from gi.repository import GdkX11
 from gi.repository import Gio
 import dbus
 import os
@@ -145,15 +144,11 @@ class JournalActivityDBusService(dbus.service.Object):
         This method is keep for backwards compatibility
         """
         chooser_id = uuid.uuid4().hex
-        if parent_xid > 0:
-            display = Gdk.Display.get_default()
-            parent = GdkX11.X11Window.foreign_new_for_display(
-                display, parent_xid)
-        else:
-            parent = None
+        # GTK4 / Wayland: Cross-process parenting via XID is unsupported
+        parent = None
         chooser = ObjectChooser(parent, what_filter)
         chooser.connect('response', self._chooser_response_cb, chooser_id)
-        chooser.show()
+        chooser.set_visible(True)
 
         return chooser_id
 
@@ -162,15 +157,11 @@ class JournalActivityDBusService(dbus.service.Object):
     def ChooseObjectWithFilter(self, parent_xid, what_filter='',
                                filter_type=None, show_preview=False):
         chooser_id = uuid.uuid4().hex
-        if parent_xid > 0:
-            display = Gdk.Display.get_default()
-            parent = GdkX11.X11Window.foreign_new_for_display(
-                display, parent_xid)
-        else:
-            parent = None
+        # GTK4 / Wayland: Cross-process parenting via XID is unsupported
+        parent = None
         chooser = ObjectChooser(parent, what_filter, filter_type, show_preview)
         chooser.connect('response', self._chooser_response_cb, chooser_id)
-        chooser.show()
+        chooser.set_visible(True)
 
         return chooser_id
 
@@ -214,12 +205,19 @@ class JournalActivity(JournalWindow):
         self._setup_secondary_view()
         self._setup_project_view()
 
-        self.add_events(Gdk.EventMask.ALL_EVENTS_MASK)
-        self._realized_sid = self.connect('realize', self.__realize_cb)
-        self.connect('window-state-event', self.__window_state_event_cb)
-        self.connect('key-press-event', self.__key_press_event_cb)
-        self.connect('focus-in-event', self._focus_in_event_cb)
-        self.connect('focus-out-event', self._focus_out_event_cb)
+        # GTK4: add_events removed
+        self.connect('notify::visible', self.__notify_visible_cb)
+
+        # GTK4: key-press-event → EventControllerKey
+        self._key_ctrl = Gtk.EventControllerKey()
+        self._key_ctrl.connect('key-pressed', self.__key_pressed_cb)
+        self.add_controller(self._key_ctrl)
+
+        # GTK4: focus-in/out-event → EventControllerFocus
+        focus_ctrl = Gtk.EventControllerFocus()
+        focus_ctrl.connect('enter', self._focus_in_cb)
+        focus_ctrl.connect('leave', self._focus_out_cb)
+        self.add_controller(focus_ctrl)
 
         model.created.connect(self.__model_created_cb)
         model.updated.connect(self.__model_updated_cb)
@@ -239,18 +237,13 @@ class JournalActivity(JournalWindow):
         alert = ErrorAlert(title=severity, msg=message)
         alert.connect('response', self.__alert_response_cb)
         self.add_alert(alert)
-        alert.show()
+        alert.set_visible(True)
 
     def __alert_response_cb(self, alert, response_id):
         self.remove_alert(alert)
 
-    def __realize_cb(self, window):
-        xid = window.get_window().get_xid()
-        SugarExt.wm_set_bundle_id(xid, _BUNDLE_ID)
-        activity_id = activityfactory.create_activity_id()
-        SugarExt.wm_set_activity_id(xid, str(activity_id))
-        self.disconnect(self._realized_sid)
-        self._realized_sid = None
+    def __notify_visible_cb(self, window, param):
+        self._set_is_visible(self.get_visible())
 
     def _session_manager_shutdown_cb(self, event):
         self.destroy()
@@ -281,23 +274,26 @@ class JournalActivity(JournalWindow):
     def _setup_main_view(self):
         self._main_toolbox = MainToolbox()
         self._edit_toolbox = EditToolbox(self)
-        self._main_view = Gtk.VBox()
+        # GTK4: Gtk.VBox → Gtk.Box(VERTICAL)
+        self._main_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         self._add_new_box = AddNewBar(_('Add new project'))
         self._add_new_box.activate.connect(self.__add_project_activate_cb)
-        self._main_view.pack_start(self._add_new_box, False, True,
-                                   style.DEFAULT_SPACING)
+        self._add_new_box.set_margin_top(style.DEFAULT_SPACING)
+        self._main_view.append(self._add_new_box)
         self._main_view.set_can_focus(True)
 
         self._list_view = ListView(self, enable_multi_operations=True)
         self.list_view_signal_connect(self._list_view)
         tree_view = self._list_view.tree_view
         tree_view.connect('choose-project', self.__choose_project_cb)
-        self._main_view.pack_start(self._list_view, True, True, 0)
-        self._list_view.show_all()
+        self._list_view.set_hexpand(True)
+        self._list_view.set_vexpand(True)
+        self._main_view.append(self._list_view)
+        self._list_view.set_visible(True)
 
         volumes_toolbar = self._create_volumes_toolbar()
-        self._main_view.pack_start(volumes_toolbar, False, True, 0)
+        self._main_view.append(volumes_toolbar)
 
         self._main_toolbox.connect('query-changed', self._query_changed_cb)
 
@@ -311,15 +307,17 @@ class JournalActivity(JournalWindow):
 
         add_new_box = AddNewBar()
         add_new_box.activate.connect(self.__add_new_activate_cb)
-        add_new_box.show_all()
-        project_vbox.pack_start(add_new_box, False, True,
-                                style.DEFAULT_SPACING / 3)
+        add_new_box.set_visible(True)
+        add_new_box.set_margin_top(style.DEFAULT_SPACING // 3)
+        project_vbox.append(add_new_box)
 
         self._entry_project = add_new_box.get_entry()
         self._list_view_project = self._project_view.create_list_view_project()
         self.list_view_signal_connect(self._list_view_project)
-        project_vbox.pack_start(self._list_view_project, True, True, 0)
-        self._list_view_project.show()
+        self._list_view_project.set_hexpand(True)
+        self._list_view_project.set_vexpand(True)
+        project_vbox.append(self._list_view_project)
+        self._list_view_project.set_visible(True)
 
     def get_add_new_box(self):
         return self._add_new_box
@@ -337,23 +335,26 @@ class JournalActivity(JournalWindow):
         self.set_canvas(self._project_view)
         self._toolbox = self._main_toolbox
         self.set_toolbar_box(self._toolbox)
-        self._toolbox.show()
+        self._toolbox.set_visible(True)
 
         query = {}
         query['project_id'] = self.project_metadata['uid']
         self._list_view_project.update_with_query(query)
-        self._project_view.show_all()
+        self._project_view.set_visible(True)
 
     def _setup_secondary_view(self):
-        self._secondary_view = Gtk.VBox()
+        # GTK4: Gtk.VBox → Gtk.Box(VERTICAL)
+        self._secondary_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         self._detail_toolbox = DetailToolbox(self)
         self._detail_toolbox.connect('volume-error', self.volume_error_cb)
 
         self._detail_view = DetailView(self)
         self._detail_view.connect('go-back-clicked', self.__go_back_clicked_cb)
-        self._secondary_view.pack_end(self._detail_view, True, True, 0)
-        self._detail_view.show()
+        self._detail_view.set_hexpand(True)
+        self._detail_view.set_vexpand(True)
+        self._secondary_view.append(self._detail_view)
+        self._detail_view.set_visible(True)
 
     def __add_project_activate_cb(self, bar, title):
         initialize_journal_object(
@@ -378,14 +379,14 @@ class JournalActivity(JournalWindow):
         chooser.connect('activity-selected',
                         self.__activity_selected_cb,
                         title)
-        chooser.show_all()
+        chooser.set_visible(True)
 
     def __activity_selected_cb(self, widget, bundle_id, activity_id, title):
         initialize_journal_object(
             title=title, bundle_id=bundle_id,
             activity_id=activity_id, project_metadata=self.project_metadata)
 
-    def __key_press_event_cb(self, widget, event):
+    def __key_pressed_cb(self, controller, keyval, keycode, state):
         '''
         Entries can be scrolled with 'Up'/'Down' arrow keys.
         Search can be started by pressing 'Ctrl' + 'F' keys
@@ -394,20 +395,23 @@ class JournalActivity(JournalWindow):
         Pressing 'Return' in Detail View starts the activity
         '''
 
-        keyname = Gdk.keyval_name(event.keyval)
+        keyname = Gdk.keyval_name(keyval)
 
         if self._active_view == JournalViews.MAIN:
             if keyname == 'Up' or keyname == 'Down':
                 if not self._list_view.tree_view.has_focus():
                     self._list_view.tree_view.grab_focus()
+                    return True
 
             elif keyname == 'Escape':
                 self._main_toolbox.clear_query()
                 if not self._list_view.tree_view.has_focus():
                     self._list_view.tree_view.grab_focus()
+                    return True
 
-            elif event.state & Gdk.ModifierType.CONTROL_MASK and keyname == 'f':
+            elif state & Gdk.ModifierType.CONTROL_MASK and keyname == 'f':
                 self._main_toolbox.search_entry.grab_focus()
+                return True
 
         elif self._active_view == JournalViews.DETAIL:
             if keyname == 'Left':
@@ -416,16 +420,20 @@ class JournalActivity(JournalWindow):
                 column = self._list_view.tree_view.get_column(5)
                 self._list_view.tree_view.set_cursor_on_cell(path, column, None, True)
                 self._detail_view.emit('go-back-clicked')
+                return True
 
             if keyname == 'Return':
                 metadata = self._detail_toolbox.get_metadata()
                 misc.resume(metadata,
                     alert_window=journalwindow.get_journal_window())
+                return True
+
+        return False
 
 
     def __choose_project_cb(self, tree_view, metadata_to_send):
-        project_chooser = ObjectChooser(self.get_window())
-        project_chooser.show_all()
+        project_chooser = ObjectChooser(self)
+        project_chooser.set_visible(True)
         project_chooser.connect('response', self.__project_chooser_response_cb,
                                 metadata_to_send)
         project_chooser._toolbar._proj_list_button_clicked_cb(None)
@@ -482,7 +490,7 @@ class JournalActivity(JournalWindow):
         self._main_view.grab_focus()
 
     def __title_edit_started_cb(self, list_view):
-        self.disconnect_by_func(self.__key_press_event_cb)
+        self.remove_controller(self._key_ctrl)
 
     def __title_edit_finished_cb(self, list_view, new_text, path):
         list_view_model = list_view.get_model()
@@ -500,11 +508,11 @@ class JournalActivity(JournalWindow):
             self._toolbox = self._main_toolbox
 
         self.set_toolbar_box(self._toolbox)
-        self._toolbox.show()
+        self._toolbox.set_visible(True)
 
         if self.canvas != self._main_view:
             self.set_canvas(self._main_view)
-            self._main_view.show()
+            self._main_view.set_visible(True)
 
     def _show_secondary_view(self, object_id):
         self._active_view = JournalViews.DETAIL
@@ -515,7 +523,7 @@ class JournalActivity(JournalWindow):
             logging.exception('Exception while displaying entry:')
 
         self.set_toolbar_box(self._detail_toolbox)
-        self._detail_toolbox.show()
+        self._detail_toolbox.set_visible(True)
 
         try:
             self._detail_view.props.metadata = metadata
@@ -523,7 +531,7 @@ class JournalActivity(JournalWindow):
             logging.exception('Exception while displaying entry:')
 
         self.set_canvas(self._secondary_view)
-        self._secondary_view.show()
+        self._secondary_view.set_visible(True)
 
     def show_object(self, object_id):
         metadata = model.get(object_id)
@@ -558,18 +566,13 @@ class JournalActivity(JournalWindow):
                 kwargs['object_id'] == self._detail_view.props.metadata['uid']:
             self.show_main_view()
 
-    def _focus_in_event_cb(self, window, event):
+    def _focus_in_cb(self, controller):
         self._set_is_visible(True)
 
-    def _focus_out_event_cb(self, window, event):
+    def _focus_out_cb(self, controller):
         self._set_is_visible(False)
 
-    def __window_state_event_cb(self, window, event):
-        logging.debug('window_state_event_cb %r', self)
-        if event.changed_mask & Gdk.WindowState.ICONIFIED:
-            state = event.new_window_state
-            visible = not state & Gdk.WindowState.ICONIFIED
-            self._set_is_visible(visible)
+    # Replaced by __notify_visible_cb
 
     def _set_is_visible(self, visible):
         if self._active_view == JournalViews.MAIN:
@@ -592,7 +595,7 @@ class JournalActivity(JournalWindow):
             self._critical_space_alert = ModalAlert()
             self._critical_space_alert.connect('destroy',
                                                self.__alert_closed_cb)
-            self._critical_space_alert.show()
+            self._critical_space_alert.set_visible(True)
 
     def __alert_closed_cb(self, data):
         self.show_main_view()
@@ -647,7 +650,7 @@ def get_journal():
     global _journal
     if _journal is None:
         _journal = JournalActivity()
-        _journal.show()
+        _journal.set_visible(True)
     return _journal
 
 

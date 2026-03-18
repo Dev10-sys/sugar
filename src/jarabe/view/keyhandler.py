@@ -180,7 +180,7 @@ class KeyHandler(object):
             window_xid = 0
         else:
             # get activity name and window id
-            window_xid = activity.get_xid()
+            window_xid = activity.get_window_id()
 
         if shell.get_model().has_modal():
             return

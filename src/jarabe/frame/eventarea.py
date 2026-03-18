@@ -17,7 +17,6 @@ from gi.repository import Gtk
 from gi.repository import Gdk
 from gi.repository import GObject
 from gi.repository import GLib
-from gi.repository import Wnck
 
 from sugar3.graphics import style
 
@@ -51,26 +50,38 @@ class EventArea(GObject.GObject):
         settings.connect('changed', self._settings_changed_cb)
         self._settings_changed_cb(settings, None)
 
-        screen = Wnck.Screen.get_default()
-        screen.connect('window-stacking-changed',
-                       self._window_stacking_changed_cb)
-
     def _box(self, tag):
-        box = Gtk.Invisible()
-        box.connect('enter-notify-event', self._enter_notify_cb)
-        box.connect('leave-notify-event', self._leave_notify_cb)
-        box.drag_dest_set(0, [], 0)
-        box.connect('drag-motion', self._drag_motion_cb)
-        box.connect('drag-leave', self._drag_leave_cb)
-        box.realize()
+        box = Gtk.Window()
+        box.set_decorated(False)
+        box.set_default_size(1, 1)
+        
+        motion_controller = Gtk.EventControllerMotion()
+        motion_controller.connect('enter', self._enter_cb)
+        motion_controller.connect('leave', self._leave_cb)
+        box.add_controller(motion_controller)
+        
+        drop_target = Gtk.DropTarget.new(Gdk.ContentProvider, Gdk.DragAction.COPY)
+        drop_target.connect('motion', self._drag_motion_cb)
+        drop_target.connect('leave', self._drag_leave_cb)
+        box.add_controller(drop_target)
+        
+        box.present()
         return box
 
     def _settings_changed_cb(self, settings, key):
         self._edge_delay = min(settings.get_int('edge-delay'), _MAX_DELAY)
         self._corner_delay = min(settings.get_int('corner-delay'), _MAX_DELAY)
         ts = min(settings.get_int('trigger-size'), style.GRID_CELL_SIZE)
-        sw = Gdk.Screen.width()
-        sh = Gdk.Screen.height()
+        
+        display = Gdk.Display.get_default()
+        if display:
+            monitor = display.get_monitors().get_item(0)
+            geometry = monitor.get_geometry()
+            sw = geometry.width
+            sh = geometry.height
+        else:
+            sw = 1200
+            sh = 900
 
         if self._edge_delay == _MAX_DELAY:
             self._hide(_EDGES)
@@ -93,11 +104,11 @@ class EventArea(GObject.GObject):
             self._move(tag, -20, -20, 1, 1)
 
     def _move(self, tag, x, y, width, height):
-        window = self._boxes[tag].get_window()
-        window.set_events(Gdk.EventMask.POINTER_MOTION_MASK |
-                          Gdk.EventMask.ENTER_NOTIFY_MASK |
-                          Gdk.EventMask.LEAVE_NOTIFY_MASK)
-        window.move_resize(x, y, width, height)
+        box = self._boxes[tag]
+        box.set_default_size(width, height)
+        # GTK4: set_position and move are not supported on Wayland.
+        # This will need compositor-specific implementation (e.g. layer-shell).
+        pass
 
     def _notify_enter(self):
         if not self._hover:
@@ -109,9 +120,10 @@ class EventArea(GObject.GObject):
             self._hover = False
             self.emit('leave')
 
-    def _enter_notify_cb(self, widget, event):
-        if self._sids:
-            GLib.source_remove(widget.sid)
+    def _enter_cb(self, controller, x, y):
+        widget = controller.get_widget()
+        if widget in self._sids:
+            GLib.source_remove(self._sids[widget])
             del self._sids[widget]
 
         delay = None
@@ -130,29 +142,27 @@ class EventArea(GObject.GObject):
         self._notify_enter()
         return False
 
-    def _leave_notify_cb(self, widget, event):
+    def _leave_cb(self, controller):
+        widget = controller.get_widget()
         if widget in self._sids:
             GLib.source_remove(self._sids[widget])
             del self._sids[widget]
         self._notify_leave()
 
-    def _drag_motion_cb(self, widget, drag_context, x, y, timestamp):
-        Gdk.drag_status(drag_context, 0, timestamp)
+    def _drag_motion_cb(self, drop_target, x, y):
         self._notify_enter()
-        return True
+        return Gdk.DragAction.COPY
 
-    def _drag_leave_cb(self, widget, drag_context, timestamp):
+    def _drag_leave_cb(self, drop_target):
         self._notify_leave()
-        return True
 
     def show(self):
         for box in list(self._boxes.values()):
-            box.show()
+            box.present()
 
     def hide(self):
         for box in list(self._boxes.values()):
-            box.hide()
+            box.set_visible(False)
 
     def _window_stacking_changed_cb(self, screen):
-        for box in list(self._boxes.values()):
-            box.get_window().raise_()
+        pass # Wnck removed

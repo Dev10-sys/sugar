@@ -36,15 +36,23 @@ def setup():
     global _instance
 
     display = Gdk.Display.get_default()
-    device_manager = display.get_device_manager()
-    devices = device_manager.list_devices(Gdk.DeviceType.SLAVE)
-    for device in devices:
-        if device.get_source() == Gdk.InputSource.TOUCHSCREEN:
-            logging.debug('Cursor Tracker: found touchscreen, '
-                          'will track input.')
-            _instance = SugarExt.CursorTracker()
-            break
+    # GTK4: Use Gdk.Seat API instead of deprecated device_manager
+    seat = display.get_default_seat()
 
-    if not _instance:
+    # Check for touch devices via seat
+    has_touchscreen = False
+    # In GTK4, we check capabilities via the seat
+    pointer = seat.get_logical_device(Gdk.SeatCapabilities.POINTER)
+    if pointer is not None:
+        # Check all devices associated with the seat
+        devices = seat.get_devices(Gdk.SeatCapabilities.TOUCH)
+        if devices:
+            has_touchscreen = True
+
+    if has_touchscreen:
+        logging.debug('Cursor Tracker: found touchscreen, '
+                      'will track input.')
+        _instance = SugarExt.CursorTracker()
+    else:
         logging.debug('Cursor Tracker: no touchscreen available, '
                       'will not track input.')

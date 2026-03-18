@@ -86,14 +86,14 @@ class WirelessPalette(Palette):
         self._disconnect_item = None
 
         self._channel_label = Gtk.Label()
-        self._channel_label.props.xalign = 0.0
-        self._channel_label.show()
+        self._channel_label.set_halign(Gtk.Align.START)
+        self._channel_label.set_visible(True)
 
         self._ip_address_label = Gtk.Label()
-        self._ip_address_label.props.xalign = 0.0
-        self._ip_address_label.show()
+        self._ip_address_label.set_xalign(0.0)
+        self._ip_address_label.set_visible(True)
 
-        self._info = Gtk.VBox()
+        self._info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         self._disconnect_item = PaletteMenuItem(_('Disconnect'))
         icon = Icon(pixel_size=style.SMALL_ICON_SIZE,
@@ -101,24 +101,22 @@ class WirelessPalette(Palette):
         self._disconnect_item.set_image(icon)
         self._disconnect_item.connect('activate',
                                       self.__disconnect_activate_cb)
-        self._info.add(self._disconnect_item)
+        self._info.append(self._disconnect_item)
 
         separator = PaletteMenuItemSeparator()
-        self._info.pack_start(separator, True, True, 0)
+        self._info.append(separator)
 
-        def _padded(child, xalign=0, yalign=0.5):
-            padder = Gtk.Alignment.new(xalign=xalign, yalign=yalign,
-                                       xscale=1, yscale=0.33)
-            padder.set_padding(style.DEFAULT_SPACING,
-                               style.DEFAULT_SPACING,
-                               style.DEFAULT_SPACING,
-                               style.DEFAULT_SPACING)
-            padder.add(child)
-            return padder
+        def _setup_padded(child):
+            child.set_margin_start(style.DEFAULT_SPACING)
+            child.set_margin_end(style.DEFAULT_SPACING)
+            child.set_margin_top(style.DEFAULT_SPACING)
+            child.set_margin_bottom(style.DEFAULT_SPACING)
+            child.set_valign(Gtk.Align.CENTER)
+            return child
 
-        self._info.pack_start(_padded(self._channel_label), True, True, 0)
-        self._info.pack_start(_padded(self._ip_address_label), True, True, 0)
-        self._info.show_all()
+        self._info.append(_setup_padded(self._channel_label))
+        self._info.append(_setup_padded(self._ip_address_label))
+        self._info.set_visible(True)
 
     def set_connecting(self):
         self.props.secondary_text = _('Connecting...')
@@ -178,21 +176,19 @@ class WiredPalette(Palette):
 
         self._ip_address_label = Gtk.Label()
 
-        self._info = Gtk.VBox()
+        self._info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
-        def _padded(child, xalign=0, yalign=0.5):
-            padder = Gtk.Alignment.new(xalign=xalign, yalign=yalign,
-                                       xscale=1, yscale=0.33)
-            padder.set_padding(style.DEFAULT_SPACING,
-                               style.DEFAULT_SPACING,
-                               style.DEFAULT_SPACING,
-                               style.DEFAULT_SPACING)
-            padder.add(child)
-            return padder
+        def _setup_padded(child):
+            child.set_margin_start(style.DEFAULT_SPACING)
+            child.set_margin_end(style.DEFAULT_SPACING)
+            child.set_margin_top(style.DEFAULT_SPACING)
+            child.set_margin_bottom(style.DEFAULT_SPACING)
+            child.set_valign(Gtk.Align.CENTER)
+            return child
 
-        self._info.pack_start(_padded(self._speed_label), True, True, 0)
-        self._info.pack_start(_padded(self._ip_address_label), True, True, 0)
-        self._info.show_all()
+        self._info.append(_setup_padded(self._speed_label))
+        self._info.append(_setup_padded(self._ip_address_label))
+        self._info.set_visible(True)
 
         self.set_content(self._info)
         self.props.secondary_text = _('Connected')
@@ -227,62 +223,61 @@ class GsmPalette(Palette):
         self._current_state = None
         self._failed_connection = False
 
-        self.info_box = Gtk.VBox()
+        self.info_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         self._toggle_state_item = PaletteMenuItem('')
         self._toggle_state_item.connect('activate', self.__toggle_state_cb)
-        self.info_box.pack_start(self._toggle_state_item, True, True, 0)
-        self._toggle_state_item.show()
+        self.info_box.append(self._toggle_state_item)
+        self._toggle_state_item.set_visible(True)
 
         self.error_title_label = Gtk.Label(label="")
-        self.error_title_label.set_alignment(0, 0.5)
+        self.error_title_label.set_xalign(0.0)
         self.error_title_label.set_line_wrap(True)
-        self.info_box.pack_start(self.error_title_label, True, True, 0)
-        self.error_description_label = Gtk.Label(label="")
-        self.error_description_label.set_alignment(0, 0.5)
-        self.error_description_label.set_line_wrap(True)
-        self.info_box.pack_start(self.error_description_label, True, True, 0)
+        self.info_box.append(self.error_title_label)
 
-        self.connection_info_box = Gtk.HBox()
-        icon = Icon(icon_name='data-upload',
-                    pixel_size=style.SMALL_ICON_SIZE)
-        self.connection_info_box.pack_start(icon, True, True, 0)
-        icon.show()
+        self.error_description_label = Gtk.Label(label="")
+        self.error_description_label.set_xalign(0.0)
+        self.error_description_label.set_line_wrap(True)
+        self.info_box.append(self.error_description_label)
+
+        self.connection_info_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        icon_up = Icon(icon_name='data-upload',
+                       pixel_size=style.SMALL_ICON_SIZE)
+        self.connection_info_box.append(icon_up)
+        icon_up.set_visible(True)
 
         self._data_label_up = Gtk.Label()
-        self._data_label_up.props.xalign = 0.0
-        label_alignment = self._add_widget_with_padding(self._data_label_up)
-        self.connection_info_box.pack_start(label_alignment, True, True, 0)
-        self._data_label_up.show()
-        label_alignment.show()
+        self._data_label_up.set_xalign(0.0)
+        self._data_label_up.set_margin_start(style.DEFAULT_SPACING)
+        self.connection_info_box.append(self._data_label_up)
+        self._data_label_up.set_visible(True)
 
-        icon = Icon(icon_name='data-download',
-                    pixel_size=style.SMALL_ICON_SIZE)
-        self.connection_info_box.pack_start(icon, True, True, 0)
-        icon.show()
+        icon_down = Icon(icon_name='data-download',
+                         pixel_size=style.SMALL_ICON_SIZE)
+        self.connection_info_box.append(icon_down)
+        icon_down.set_visible(True)
+
         self._data_label_down = Gtk.Label()
-        self._data_label_down.props.xalign = 0.0
-        label_alignment = self._add_widget_with_padding(self._data_label_down)
-        self.connection_info_box.pack_start(label_alignment, True, True, 0)
-        self._data_label_down.show()
-        label_alignment.show()
+        self._data_label_down.set_xalign(0.0)
+        self._data_label_down.set_margin_start(style.DEFAULT_SPACING)
+        self.connection_info_box.append(self._data_label_down)
+        self._data_label_down.set_visible(True)
 
-        self.info_box.pack_start(self.connection_info_box, True, True, 0)
+        self.info_box.append(self.connection_info_box)
 
-        self.info_box.show()
+        self.info_box.set_visible(True)
         self.set_content(self.info_box)
 
         self.update_state(_GSM_STATE_NOT_READY)
 
     def _add_widget_with_padding(self, child, xalign=0, yalign=0.5):
-        alignment = Gtk.Alignment.new(xalign=xalign, yalign=yalign,
-                                      xscale=1, yscale=0.33)
-        alignment.set_padding(style.DEFAULT_SPACING,
-                              style.DEFAULT_SPACING,
-                              style.DEFAULT_SPACING,
-                              style.DEFAULT_SPACING)
-        alignment.add(child)
-        return alignment
+        child.set_margin_start(style.DEFAULT_SPACING)
+        child.set_margin_end(style.DEFAULT_SPACING)
+        child.set_margin_top(style.DEFAULT_SPACING)
+        child.set_margin_bottom(style.DEFAULT_SPACING)
+        child.set_halign(Gtk.Align.START if xalign == 0 else Gtk.Align.CENTER)
+        child.set_valign(Gtk.Align.CENTER)
+        return child
 
     def update_state(self, state, reason=0):
         self._current_state = state

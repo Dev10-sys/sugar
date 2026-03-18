@@ -64,12 +64,11 @@ class DeviceView(TrayIcon):
                     pixel_size=style.SMALL_ICON_SIZE,
                     xo_color=color)
         menu_item.set_image(icon)
-        icon.show()
+        icon.set_visible(True)
 
         menu_item.connect('activate', self.__show_contents_cb)
-        palette.content_box.pack_start(menu_item, True, True, 0)
-        palette.content_box.reorder_child(menu_item, 0)
-        menu_item.show()
+        palette.content_box.prepend(menu_item)
+        menu_item.set_visible(True)
 
         return palette
 

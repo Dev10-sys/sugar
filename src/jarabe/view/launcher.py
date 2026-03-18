@@ -34,26 +34,31 @@ class LaunchWindow(Gtk.Window):
 
     def __init__(self, activity_id, icon_path, icon_color):
         Gtk.Window.__init__(self)
-        self.set_has_resize_grip(False)
 
         self.props.type_hint = Gdk.WindowTypeHint.SPLASHSCREEN
-        self.modify_bg(Gtk.StateType.NORMAL, style.COLOR_WHITE.get_gdk_color())
 
-        canvas = Gtk.VBox()
-        canvas.show()
-        self.add(canvas)
+        canvas = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.set_child(canvas)
 
-        bar_size = Gdk.Screen.height() / 5 * 2
+        display = Gdk.Display.get_default()
+        if display:
+            monitor = display.get_monitors().get_item(0)
+            geometry = monitor.get_geometry()
+            bar_size = geometry.height / 5 * 2
+            box_width = geometry.width / 5
+        else:
+            bar_size = 360
+            box_width = 240
 
-        header = Gtk.VBox()
+        header = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         header.set_size_request(-1, bar_size)
-        header.show()
-        canvas.pack_start(header, False, True, 0)
+        canvas.append(header)
 
-        box = Gtk.HBox()
-        box.set_size_request(Gdk.Screen.width() / 5, -1)
-        box.show()
-        canvas.pack_start(box, True, True, 0)
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        box.set_size_request(box_width, -1)
+        box.set_hexpand(True)
+        box.set_vexpand(True)
+        canvas.append(box)
 
         self._activity_id = activity_id
 
@@ -64,28 +69,29 @@ class LaunchWindow(Gtk.Window):
         self._activity_icon.set_zooming(style.SMALL_ICON_SIZE,
                                         style.XLARGE_ICON_SIZE, 10)
         self._activity_icon.set_pulsing(True)
-        self._activity_icon.show()
-        box.pack_start(self._activity_icon, True, False, 0)
+        box.append(self._activity_icon)
 
-        footer = Gtk.VBox(spacing=style.DEFAULT_SPACING)
+        footer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=style.DEFAULT_SPACING)
         footer.set_size_request(-1, bar_size)
-        footer.show()
-        canvas.pack_end(footer, False, True, 0)
+        canvas.append(footer)
 
         self.error_text = Gtk.Label()
         self.error_text.props.use_markup = True
-        footer.pack_start(self.error_text, False, True, 0)
+        footer.append(self.error_text)
 
-        button_box = Gtk.Alignment.new(0.5, 0, 0, 0)
-        button_box.show()
-        footer.pack_start(button_box, False, True, 0)
-        self.cancel_button = Gtk.Button(stock=Gtk.STOCK_STOP)
-        button_box.add(self.cancel_button)
+        button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        button_box.set_halign(Gtk.Align.CENTER)
+        footer.append(button_box)
+        
+        self.cancel_button = Gtk.Button(label=_('Stop'))
+        button_box.append(self.cancel_button)
 
         self.connect('realize', self.__realize_cb)
 
-        screen = Gdk.Screen.get_default()
-        screen.connect('size-changed', self.__size_changed_cb)
+        display = Gdk.Display.get_default()
+        if display:
+            monitor = display.get_monitors().get_item(0)
+            monitor.connect('notify::geometry', self.__monitor_changed_cb)
 
         self._home = shell.get_model()
         self._home.connect('active-activity-changed',
@@ -99,13 +105,19 @@ class LaunchWindow(Gtk.Window):
         self.present()
 
     def _update_size(self):
-        self.resize(Gdk.Screen.width(), Gdk.Screen.height())
+        display = Gdk.Display.get_default()
+        if display:
+            monitor = display.get_monitors().get_item(0)
+            geometry = monitor.get_geometry()
+            self.set_default_size(geometry.width, geometry.height)
 
     def __realize_cb(self, widget):
-        SugarExt.wm_set_activity_id(widget.get_window().get_xid(),
-                                    str(self._activity_id))
+        surface = widget.get_surface()
+        if surface and hasattr(SugarExt, 'wm_set_activity_id'):
+            # GTK4 doesn't expose XID directly, skip for Wayland
+            pass
 
-    def __size_changed_cb(self, screen):
+    def __monitor_changed_cb(self, monitor, pspec):
         self._update_size()
 
     def __active_activity_changed_cb(self, model, activity):

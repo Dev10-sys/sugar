@@ -72,7 +72,7 @@ class UIService(dbus.service.Object):
         activity = self._shell_model.get_activity_by_id(activity_id)
 
         if activity is not None and activity.get_window() is not None:
-            activity.get_window().activate(Gtk.get_current_event_time())
+            activity.get_window().activate(0)
             return self._shell_model.get_launcher(activity_id) is None
 
         return False
@@ -86,3 +86,12 @@ class UIService(dbus.service.Object):
                          in_signature='s', out_signature='')
     def NotifyLaunchFailure(self, activity_id):
         shell.get_model().notify_launch_failed(activity_id)
+    @dbus.service.method(_DBUS_SHELL_IFACE,
+                         in_signature='ss', out_signature='')
+    def RegisterWindow(self, activity_id, window_id):
+        self._shell_model.register_window(activity_id, window_id)
+
+    @dbus.service.method(_DBUS_SHELL_IFACE,
+                         in_signature='ss', out_signature='')
+    def UnregisterWindow(self, activity_id, window_id):
+        self._shell_model.unregister_window(activity_id, window_id)

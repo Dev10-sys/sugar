@@ -32,56 +32,60 @@ class Power(SectionView):
         self._automatic_pm_valid = True
         self._automatic_pm_change_handler = None
 
-        self.set_border_width(style.DEFAULT_SPACING * 2)
+        self.set_margin_start(style.DEFAULT_SPACING * 2)
+        self.set_margin_end(style.DEFAULT_SPACING * 2)
+        self.set_margin_top(style.DEFAULT_SPACING * 2)
+        self.set_margin_bottom(style.DEFAULT_SPACING * 2)
         self.set_spacing(style.DEFAULT_SPACING)
-        group = Gtk.SizeGroup(Gtk.SizeGroupMode.HORIZONTAL)
+        group = Gtk.SizeGroup(mode=Gtk.SizeGroupMode.HORIZONTAL)
 
-        self._automatic_pm_alert_box = Gtk.HBox(spacing=style.DEFAULT_SPACING)
+        self._automatic_pm_alert_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=style.DEFAULT_SPACING)
 
-        separator_pm = Gtk.HSeparator()
-        self.pack_start(separator_pm, False, True, 0)
-        separator_pm.show()
+        separator_pm = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        self.append(separator_pm)
+        separator_pm.set_visible(True)
 
         label_pm = Gtk.Label(label=_('Power management'))
-        label_pm.set_alignment(0, 0)
-        self.pack_start(label_pm, False, True, 0)
-        label_pm.show()
-        box_pm = Gtk.VBox()
-        box_pm.set_border_width(style.DEFAULT_SPACING * 2)
+        label_pm.set_xalign(0.0)
+        label_pm.set_yalign(0.0)
+        self.append(label_pm)
+        label_pm.set_visible(True)
+
+        box_pm = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        box_pm.set_margin_start(style.DEFAULT_SPACING * 2)
+        box_pm.set_margin_end(style.DEFAULT_SPACING * 2)
+        box_pm.set_margin_top(style.DEFAULT_SPACING * 2)
+        box_pm.set_margin_bottom(style.DEFAULT_SPACING * 2)
         box_pm.set_spacing(style.DEFAULT_SPACING)
 
-        box_automatic_pm = Gtk.HBox(spacing=style.DEFAULT_SPACING)
+        box_automatic_pm = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=style.DEFAULT_SPACING)
         label_automatic_pm = Gtk.Label(
             label=_('Automatic power management (increases battery life)'))
-        label_automatic_pm.set_alignment(0, 0.5)
+        label_automatic_pm.set_xalign(0.0)
+        label_automatic_pm.set_yalign(0.5)
         self._automatic_button = Gtk.CheckButton()
-        self._automatic_button.set_alignment(0, 0)
-        box_automatic_pm.pack_start(self._automatic_button, False, True, 0)
-        box_automatic_pm.pack_start(label_automatic_pm, False, True, 0)
-        self._automatic_button.show()
-        label_automatic_pm.show()
+        box_automatic_pm.append(self._automatic_button)
+        box_automatic_pm.append(label_automatic_pm)
+        self._automatic_button.set_visible(True)
+        label_automatic_pm.set_visible(True)
         group.add_widget(label_automatic_pm)
-        box_pm.pack_start(box_automatic_pm, False, True, 0)
-        box_automatic_pm.show()
+        box_pm.append(box_automatic_pm)
+        box_automatic_pm.set_visible(True)
 
         self._automatic_pm_alert = InlineAlert()
         label_automatic_pm_error = Gtk.Label()
         group.add_widget(label_automatic_pm_error)
-        self._automatic_pm_alert_box.pack_start(label_automatic_pm_error,
-                                                expand=False, fill=True,
-                                                padding=0)
-        label_automatic_pm_error.show()
-        self._automatic_pm_alert_box.pack_start(self._automatic_pm_alert,
-                                                expand=False, fill=True,
-                                                padding=0)
-        box_pm.pack_end(self._automatic_pm_alert_box, False, True, 0)
-        self._automatic_pm_alert_box.show()
+        self._automatic_pm_alert_box.append(label_automatic_pm_error)
+        label_automatic_pm_error.set_visible(True)
+        self._automatic_pm_alert_box.append(self._automatic_pm_alert)
+        box_pm.append(self._automatic_pm_alert_box)
+        self._automatic_pm_alert_box.set_visible(True)
         if 'automatic_pm' in self.restart_alerts:
             self._automatic_pm_alert.props.msg = self.restart_msg
-            self._automatic_pm_alert.show()
+            self._automatic_pm_alert.set_visible(True)
 
-        self.pack_start(box_pm, False, True, 0)
-        box_pm.show()
+        self.append(box_pm)
+        box_pm.set_visible(True)
 
         self.setup()
 
