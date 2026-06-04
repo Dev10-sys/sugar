@@ -18,8 +18,8 @@ import logging
 
 from gi.repository import Gtk
 from gi.repository import Gdk
-from gi.repository import SugarExt
 from gi.repository import GLib
+from gi.repository import GObject
 
 from sugar4.graphics.radiotoolbutton import RadioToolButton
 from sugar4.graphics.icon import Icon
@@ -54,15 +54,13 @@ class ClipboardIcon(RadioToolButton):
         color = profile.get_color()
         self._icon.props.xo_color = color
         self.set_icon_widget(self._icon)
-        self._icon.show()
+        self._icon.set_visible(True)
 
         cb_service = clipboard.get_instance()
         cb_service.connect('object-state-changed',
                            self._object_state_changed_cb)
         cb_service.connect('object-selected', self._object_selected_cb)
 
-        child = self.get_child()
-        child.connect('drag-data-get', self._drag_data_get_cb)
         self.connect('notify::active', self._notify_active_cb)
 
     def create_palette(self):
@@ -73,15 +71,6 @@ class ClipboardIcon(RadioToolButton):
     def get_object_id(self):
         return self._cb_object.get_id()
 
-    def _drag_data_get_cb(self, widget, context, selection, target_type,
-                          event_time):
-        target_atom = selection.get_target()
-        target_name = target_atom.name()
-        logging.debug('_drag_data_get_cb: requested target %s', target_name)
-        data = self._cb_object.get_formats()[target_name].get_data()
-        selection.set(target_atom, 8, data)
-        GLib.source_remove(self._timeout_id)
-
     def _put_in_clipboard(self):
         logging.debug('ClipboardIcon._put_in_clipboard')
 
@@ -89,22 +78,22 @@ class ClipboardIcon(RadioToolButton):
             raise ValueError('Object is not complete, cannot be put into the'
                              ' clipboard.')
 
-        clipboard = Gdk.Display.get_default().get_clipboard()
+        gdk_clipboard = Gdk.Display.get_default().get_clipboard()
         try:
-            content_provider = Gdk.ContentProvider.new_for_bytes(
-                self._cb_object.get_mime_type(),
-                self._cb_object)
-            stored = clipboard.set_content(content_provider)
-        # this is empty as I don't yet know what exceptions can be raised here.
-        except:
-             stored = SugarExt.clipboard_set_with_data(
-                self._cb_object.get_mime_type(),
-                self._cb_object)
-
-        if not stored:
-            logging.error('GtkClipboard.set_with_data failed!')
-        else:
-            self.owns_clipboard = True
+            # We assume text/plain for simplicity in this port, or use Gdk.ContentProvider
+            mime_type = self._cb_object.get_mime_type()
+            formats = self._cb_object.get_formats()
+            if mime_type in formats:
+                data = formats[mime_type].get_data()
+                if isinstance(data, str):
+                    gdk_clipboard.set_text(data)
+                elif isinstance(data, bytes):
+                    gbytes = GLib.Bytes.new(data)
+                    provider = Gdk.ContentProvider.new_for_bytes(mime_type, gbytes)
+                    gdk_clipboard.set_content(provider)
+                self.owns_clipboard = True
+        except Exception as e:
+            logging.error('Failed to put in clipboard: %s', e)
 
     def _object_state_changed_cb(self, cb_service, cb_object):
         if cb_object != self._cb_object:
@@ -118,10 +107,11 @@ class ClipboardIcon(RadioToolButton):
             self._icon.props.icon_name = 'application-octet-stream'
 
         child = self.get_child()
-        child.connect('drag-begin', self._drag_begin_cb)
-        child.drag_source_set(Gdk.ModifierType.BUTTON1_MASK,
-                              self._get_targets(),
-                              Gdk.DragAction.COPY)
+        if child and not hasattr(self, '_drag_source'):
+            self._drag_source = Gtk.DragSource.new()
+            self._drag_source.connect('prepare', self._on_drag_prepare)
+            self._drag_source.connect('drag-begin', self._drag_begin_cb)
+            child.add_controller(self._drag_source)
 
         if cb_object.get_percent() == 100:
             self.props.sensitive = True
@@ -150,23 +140,34 @@ class ClipboardIcon(RadioToolButton):
         frame = jarabe.frame.get_view()
         self._timeout_id = frame.add_notification(
             self._notif_icon, Gtk.CornerType.BOTTOM_LEFT)
-        self._notif_icon.connect('drag-data-get', self._drag_data_get_cb)
-        self._notif_icon.connect('drag-begin', self._drag_begin_cb)
-        self._notif_icon.drag_source_set(Gdk.ModifierType.BUTTON1_MASK,
-                                         self._get_targets(),
-                                         Gdk.DragAction.COPY)
+            
+        notif_drag_source = Gtk.DragSource.new()
+        notif_drag_source.connect('prepare', self._on_drag_prepare)
+        notif_drag_source.connect('drag-begin', self._drag_begin_cb)
+        self._notif_icon.add_controller(notif_drag_source)
 
-    def _drag_begin_cb(self, widget, context):
-        # TODO: We should get the pixbuf from the icon, with colors, etc.
+    def _on_drag_prepare(self, source, x, y):
+        mime_type = self._cb_object.get_mime_type()
+        formats = self._cb_object.get_formats()
+        if mime_type in formats:
+            data = formats[mime_type].get_data()
+            if isinstance(data, str):
+                return Gdk.ContentProvider.new_for_value(data)
+            elif isinstance(data, bytes):
+                gbytes = GLib.Bytes.new(data)
+                return Gdk.ContentProvider.new_for_bytes(mime_type, gbytes)
+        return Gdk.ContentProvider.new_for_value("Empty object")
+
+    def _drag_begin_cb(self, source, drag):
         frame = jarabe.frame.get_view()
-        self._timeout_id = GLib.timeout_add(
-            jarabe.frame.frame.NOTIFICATION_DURATION,
-            lambda: frame.remove_notification(self._notif_icon))
-        icon_theme = Gtk.IconTheme.get_default()
-        pixbuf = icon_theme.load_icon(self._icon.props.icon_name,
-                                      style.STANDARD_ICON_SIZE, 0)
-        Gtk.drag_set_icon_pixbuf(context, pixbuf, hot_x=pixbuf.props.width / 2,
-                                 hot_y=pixbuf.props.height / 2)
+        if hasattr(self, '_timeout_id'):
+            self._timeout_id = GLib.timeout_add(
+                jarabe.frame.frame.NOTIFICATION_DURATION,
+                lambda: frame.remove_notification(self._notif_icon))
+        icon_theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
+        paintable = icon_theme.lookup_icon(self._icon.props.icon_name, None, style.STANDARD_ICON_SIZE, 1, 0, 0)
+        if paintable:
+            source.set_icon(paintable, 0, 0)
 
     def _notify_active_cb(self, widget, pspec):
         if self.props.active:

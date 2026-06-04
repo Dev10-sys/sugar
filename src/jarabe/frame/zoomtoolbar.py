@@ -29,14 +29,16 @@ from jarabe.frame.frameinvoker import FrameWidgetInvoker
 from jarabe.model import shell
 
 
-class ZoomToolbar(Gtk.Toolbar):
+class ZoomToolbar(Gtk.Box):
+    __gtype_name__ = 'SugarZoomToolbar'
+
     __gsignals__ = {
         'level-clicked': (GObject.SignalFlags.RUN_FIRST, None,
                           ([]))
     }
 
     def __init__(self):
-        Gtk.Toolbar.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
 
         # we shouldn't be mirrored in RTL locales
         self.set_direction(Gtk.TextDirection.LTR)
@@ -67,16 +69,12 @@ class ZoomToolbar(Gtk.Toolbar):
         shell_model.zoom_level_changed.connect(self.__zoom_level_changed_cb)
 
     def _add_button(self, icon_name, label, accelerator, zoom_level):
-        if self.get_children():
-            group = self.get_children()[0]
-        else:
-            group = None
+        group = self.get_first_child()
 
         button = RadioToolButton(icon_name=icon_name, group=group,
                                  accelerator=accelerator)
         button.connect('clicked', self.__level_clicked_cb, zoom_level)
-        self.add(button)
-        button.show()
+        self.append(button)
 
         palette = Palette(GLib.markup_escape_text(label))
         palette.props.invoker = FrameWidgetInvoker(button)

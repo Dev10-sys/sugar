@@ -62,7 +62,7 @@ class FriendsTray(VTray):
 
         icon = FriendIcon(buddy)
         self.add_item(icon)
-        icon.show()
+        icon.set_visible(True)
 
         self._buddies[buddy.props.key] = icon
 
@@ -74,9 +74,11 @@ class FriendsTray(VTray):
         del self._buddies[buddy.props.key]
 
     def clear(self):
-        for item in self.get_children():
-            self.remove_item(item)
-            item.destroy()
+        child = self.get_first_child()
+        while child:
+            next_child = child.get_next_sibling()
+            self.remove_item(child)
+            child = next_child
         self._buddies = {}
 
     def __neighborhood_activity_added_cb(self, neighborhood_model,

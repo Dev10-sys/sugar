@@ -35,13 +35,22 @@ from jarabe.frame.clipboardpanelwindow import ClipboardPanelWindow
 from jarabe.frame.notification import NotificationIcon, NotificationWindow
 from jarabe.model import notifications
 
-
 TOP_RIGHT = 0
 TOP_LEFT = 1
 BOTTOM_RIGHT = 2
 BOTTOM_LEFT = 3
 
 NOTIFICATION_DURATION = 5000
+
+
+def _get_screen_size():
+    display = Gdk.Display.get_default()
+    if display:
+        monitors = display.get_monitors()
+        if monitors and monitors.get_n_items() > 0:
+            geometry = monitors.get_item(0).get_geometry()
+            return geometry.width, geometry.height
+    return 1024, 768
 
 
 class _Animation(animator.Animation):
@@ -52,7 +61,7 @@ class _Animation(animator.Animation):
         self._frame = frame
 
     def next_frame(self, current):
-        self._frame.move(current)
+        self._frame.move_panels(current)
 
 
 class Frame(object):
@@ -74,15 +83,18 @@ class Frame(object):
 
         self._event_area = EventArea(self.settings)
         self._event_area.connect('enter', self._enter_corner_cb)
-        self._event_area.show()
+        self._event_area.set_visible(True)
 
         self._top_panel = self._create_top_panel()
         self._bottom_panel = self._create_bottom_panel()
         self._left_panel = self._create_left_panel()
         self._right_panel = self._create_right_panel()
 
-        screen = Gdk.Screen.get_default()
-        screen.connect('size-changed', self._size_changed_cb)
+        display = Gdk.Display.get_default()
+        if display:
+            monitors = display.get_monitors()
+            if monitors:
+                monitors.connect('items-changed', self._size_changed_cb)
 
         self._notif_by_icon = {}
 
@@ -130,7 +142,7 @@ class Frame(object):
         self._animator.add(_Animation(self, 1.0))
         self._animator.start()
 
-    def move(self, pos):
+    def move_panels(self, pos):
         self.current_position = pos
         self._update_position()
 
@@ -139,12 +151,12 @@ class Frame(object):
 
         zoom_toolbar = ZoomToolbar()
         panel.append(zoom_toolbar, expand=False)
-        zoom_toolbar.show()
+        zoom_toolbar.set_visible(True)
         zoom_toolbar.connect('level-clicked', self._level_clicked_cb)
 
         activities_tray = ActivitiesTray()
         panel.append(activities_tray)
-        activities_tray.show()
+        activities_tray.set_visible(True)
 
         return panel
 
@@ -153,7 +165,7 @@ class Frame(object):
 
         devices_tray = DevicesTray()
         panel.append(devices_tray)
-        devices_tray.show()
+        devices_tray.set_visible(True)
 
         return panel
 
@@ -162,36 +174,36 @@ class Frame(object):
 
         tray = FriendsTray()
         panel.append(tray)
-        tray.show()
+        tray.set_visible(True)
 
         return panel
 
     def _create_left_panel(self):
         panel = ClipboardPanelWindow(self, Gtk.PositionType.LEFT)
-
         return panel
 
     def _create_panel(self, orientation):
         panel = FrameWindow(orientation)
-
         return panel
 
     def _move_panel(self, panel, pos, x1, y1, x2, y2):
         x = (x2 - x1) * pos + x1
         y = (y2 - y1) * pos + y1
 
-        panel.move(int(x), int(y))
+        if hasattr(panel, 'move'):
+            panel.move(int(x), int(y))
 
         # FIXME we should hide and show as necessary to free memory
-        if not panel.props.visible:
-            panel.show()
+        if not panel.get_visible():
+            panel.set_visible(True)
+            if hasattr(panel, 'present'):
+                panel.present()
 
     def _level_clicked_cb(self, zoom_toolbar):
         self.hide()
 
     def _update_position(self):
-        screen_h = Gdk.Screen.height()
-        screen_w = Gdk.Screen.width()
+        screen_w, screen_h = _get_screen_size()
 
         self._move_panel(self._top_panel, self.current_position,
                          0, - self._top_panel.size, 0, 0)
@@ -205,7 +217,7 @@ class Frame(object):
         self._move_panel(self._right_panel, self.current_position,
                          screen_w, 0, screen_w - self._right_panel.size, 0)
 
-    def _size_changed_cb(self, screen):
+    def _size_changed_cb(self, monitors, position, removed, added):
         self._update_position()
 
     def _enter_corner_cb(self, event_area):
@@ -227,22 +239,28 @@ class Frame(object):
 
         window = NotificationWindow()
 
-        screen = Gdk.Screen.get_default()
+        screen_w, screen_h = _get_screen_size()
+        
+        x, y = 0, 0
         if corner == Gtk.CornerType.TOP_LEFT:
-            window.move(0, 0)
+            x, y = 0, 0
         elif corner == Gtk.CornerType.TOP_RIGHT:
-            window.move(screen.get_width() - style.GRID_CELL_SIZE, 0)
+            x, y = screen_w - style.GRID_CELL_SIZE, 0
         elif corner == Gtk.CornerType.BOTTOM_LEFT:
-            window.move(0, screen.get_height() - style.GRID_CELL_SIZE)
+            x, y = 0, screen_h - style.GRID_CELL_SIZE
         elif corner == Gtk.CornerType.BOTTOM_RIGHT:
-            window.move(screen.get_width() - style.GRID_CELL_SIZE,
-                        screen.get_height() - style.GRID_CELL_SIZE)
+            x, y = screen_w - style.GRID_CELL_SIZE, screen_h - style.GRID_CELL_SIZE
         else:
-            raise ValueError('Inalid corner: %r' % corner)
+            raise ValueError('Invalid corner: %r' % corner)
 
-        window.add(icon)
-        icon.show()
-        window.show()
+        if hasattr(window, 'move'):
+            window.move(x, y)
+
+        window.set_child(icon)
+        icon.set_visible(True)
+        window.set_visible(True)
+        if hasattr(window, 'present'):
+            window.present()
 
         self._notif_by_icon[icon] = window
 
@@ -259,7 +277,7 @@ class Frame(object):
         window.destroy()
         del self._notif_by_icon[icon]
 
-    def __button_release_event_cb(self, icon, data=None):
+    def __button_release_event_cb(self, gesture, n_press, x, y, icon):
         self.remove_notification(icon)
         self.show()
 
@@ -267,7 +285,10 @@ class Frame(object):
         logging.debug('__notification_received_cb')
         icon = NotificationIcon()
         icon.show_badge()
-        icon.connect('button-release-event', self.__button_release_event_cb)
+        
+        click = Gtk.GestureClick.new()
+        click.connect('released', self.__button_release_event_cb, icon)
+        icon.add_controller(click)
 
         hints = kwargs['hints']
 

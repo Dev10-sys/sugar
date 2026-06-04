@@ -60,7 +60,7 @@ class GenderPicker(Gtk.Grid):
             self._buttons[-1].connect('activate',
                                       self._button_activate_cb, i)
             self.attach(self._buttons[-1], i * 2, 0, 1, 1)
-            self._buttons[-1].show()
+            self._buttons[-1].set_visible(True)
 
         self.reset_button = EventIcon(pixel_size=style.SMALL_ICON_SIZE,
                                       icon_name='entry-cancel')
@@ -68,7 +68,7 @@ class GenderPicker(Gtk.Grid):
                                   self._reset_button_activate_cb)
         self.attach(self.reset_button, 1, 0, 1, 1)
         self.reset_button.xo_color = XoColor('#010101,#a0a0a0')
-        self.reset_button.show()
+        self.reset_button.set_visible(True)
 
     def _reset_button_activate_cb(self, widget):
         self._set_gender('')

@@ -22,10 +22,20 @@ from sugar4.graphics.palette import WidgetInvoker
 def _get_screen_area():
     frame_thickness = style.GRID_CELL_SIZE
 
+    display = Gdk.Display.get_default()
+    width = 1024
+    height = 768
+    if display:
+        monitors = display.get_monitors()
+        if monitors and monitors.get_n_items() > 0:
+            geometry = monitors.get_item(0).get_geometry()
+            width = geometry.width
+            height = geometry.height
+
     screen_area = Gdk.Rectangle()
     screen_area.x = screen_area.y = frame_thickness
-    screen_area.width = Gdk.Screen.width() - frame_thickness
-    screen_area.height = Gdk.Screen.height() - frame_thickness
+    screen_area.width = width - frame_thickness
+    screen_area.height = height - frame_thickness
 
     return screen_area
 

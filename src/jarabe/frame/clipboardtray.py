@@ -17,12 +17,21 @@ import logging
 
 from gi.repository import Gtk
 from gi.repository import Gdk
+from gi.repository import GObject
 
 from sugar4.graphics import tray
 from sugar4.graphics import style
 
 from jarabe.frame import clipboard
 from jarabe.frame.clipboardicon import ClipboardIcon
+
+def _get_screen_height():
+    display = Gdk.Display.get_default()
+    if display:
+        monitors = display.get_monitors()
+        if monitors and monitors.get_n_items() > 0:
+            return monitors.get_item(0).get_geometry().height
+    return 768
 
 
 class ContextMap(object):
@@ -58,16 +67,20 @@ class ContextMap(object):
 
 class ClipboardTray(tray.VTray):
 
-    MAX_ITEMS = Gdk.Screen.height() // style.GRID_CELL_SIZE - 2
+    MAX_ITEMS = _get_screen_height() // style.GRID_CELL_SIZE - 2
 
     def __init__(self):
         tray.VTray.__init__(self, align=tray.ALIGN_TO_END)
         self._icons = {}
-        self._context_map = ContextMap()
 
         cb_service = clipboard.get_instance()
         cb_service.connect('object-added', self._object_added_cb)
         cb_service.connect('object-deleted', self._object_deleted_cb)
+
+        formats = Gdk.ContentFormats.new_for_gtype(GObject.TYPE_STRING)
+        self._drop_target = Gtk.DropTargetAsync.new(formats, actions=Gdk.DragAction.COPY | Gdk.DragAction.MOVE)
+        self._drop_target.connect('drop', self._on_drop_async_cb)
+        self.add_controller(self._drop_target)
 
     def owns_clipboard(self):
         for icon in list(self._icons.values()):
@@ -75,125 +88,65 @@ class ClipboardTray(tray.VTray):
                 return True
         return False
 
-    def _add_selection(self, object_id, selection):
-        if not selection.get_data():
-            return
-
-        selection_data = selection.get_data()
-
-        selection_type_atom = selection.get_data_type()
-        selection_type = selection_type_atom.name()
-
-        logging.debug('ClipboardTray: adding type %r', selection_type)
-
-        cb_service = clipboard.get_instance()
-        if selection_type == 'text/uri-list':
-            uris = selection.get_uris()
-            if len(uris) > 1:
-                raise NotImplementedError('Multiple uris in text/uri-list'
-                                          ' still not supported.')
-
-            cb_service.add_object_format(object_id,
-                                         selection_type,
-                                         uris[0],
-                                         on_disk=True)
-        else:
-            cb_service.add_object_format(object_id,
-                                         selection_type,
-                                         selection_data,
-                                         on_disk=False)
-
     def _object_added_cb(self, cb_service, cb_object):
+        group = None
         if self._icons:
             group = list(self._icons.values())[0]
-        else:
-            group = None
 
         icon = ClipboardIcon(cb_object, group)
         self.add_item(icon)
-        icon.show()
+        icon.set_visible(True)
         self._icons[cb_object.get_id()] = icon
 
-        objects_to_delete = self.get_children()[:-self.MAX_ITEMS]
-        for icon in objects_to_delete:
-            logging.debug('ClipboardTray: deleting surplus object')
-            cb_service = clipboard.get_instance()
-            cb_service.delete_object(icon.get_object_id())
+        # Enforce MAX_ITEMS
+        children = []
+        child = self.get_first_child()
+        while child:
+            children.append(child)
+            child = child.get_next_sibling()
+
+        if len(children) > self.MAX_ITEMS:
+            objects_to_delete = children[:-self.MAX_ITEMS]
+            for icon_to_delete in objects_to_delete:
+                logging.debug('ClipboardTray: deleting surplus object')
+                cb_service = clipboard.get_instance()
+                cb_service.delete_object(icon_to_delete.get_object_id())
 
         logging.debug('ClipboardTray: %r was added', cb_object.get_id())
 
     def _object_deleted_cb(self, cb_service, object_id):
-        icon = self._icons[object_id]
-        self.remove_item(icon)
-        del self._icons[object_id]
-        # select the last available icon
-        if self._icons:
-            last_icon = self.get_children()[-1]
-            last_icon.props.active = True
+        icon = self._icons.get(object_id)
+        if icon:
+            self.remove_item(icon)
+            del self._icons[object_id]
+            
+            # select the last available icon
+            if self._icons:
+                children = []
+                child = self.get_first_child()
+                while child:
+                    children.append(child)
+                    child = child.get_next_sibling()
+                if children:
+                    last_icon = children[-1]
+                    if hasattr(last_icon, 'set_active'):
+                        last_icon.set_active(True)
 
         logging.debug('ClipboardTray: %r was deleted', object_id)
 
-    def drag_motion_cb(self, widget, context, x, y, time):
-        logging.debug('ClipboardTray._drag_motion_cb')
+    def _on_drop_async_cb(self, target, drop, x, y):
+        logging.debug('ClipboardTray._on_drop_async_cb')
 
-        if self._internal_drag(context):
-            Gdk.drag_status(context, Gdk.DragAction.MOVE, time)
-        else:
-            Gdk.drag_status(context, Gdk.DragAction.COPY, time)
-            self.props.drag_active = True
-
+        drop.read_text_async(None, self._on_read_text_cb, None)
         return True
-
-    def drag_leave_cb(self, widget, context, time):
-        self.props.drag_active = False
-
-    def drag_drop_cb(self, widget, context, x, y, time):
-        logging.debug('ClipboardTray._drag_drop_cb')
-
-        if self._internal_drag(context):
-            # TODO: We should move the object within the clipboard here
-            if not self._context_map.has_context(context):
-                Gdk.drop_finish(context, False, Gtk.get_current_event_time())
-            return False
-
-        cb_service = clipboard.get_instance()
-        object_id = cb_service.add_object(name="")
-
-        context_targets = context.list_targets()
-        self._context_map.add_context(context, object_id, len(context_targets))
-
-        for target in context_targets:
-            if str(target) not in ('TIMESTAMP', 'TARGETS', 'MULTIPLE'):
-                widget.drag_get_data(context, target, time)
-
-        cb_service.set_object_percent(object_id, percent=100)
-
-        return True
-
-    def drag_data_received_cb(self, widget, context, x, y, selection,
-                              targetType, time):
-        logging.debug('ClipboardTray: got data for target %r',
-                      selection.get_target())
-
-        object_id = self._context_map.get_object_id(context)
+        
+    def _on_read_text_cb(self, drop, result, user_data):
         try:
-            if selection is None:
-                logging.warn('ClipboardTray: empty selection for target %s',
-                             selection.get_target())
-            else:
-                self._add_selection(object_id, selection)
-
-        finally:
-            # If it's the last target to be processed, finish
-            # the dnd transaction
-            if not self._context_map.has_context(context):
-                Gdk.drop_finish(context, True, Gtk.get_current_event_time())
-
-    def _internal_drag(self, context):
-        source_widget = Gtk.drag_get_source_widget(context)
-        if source_widget is None:
-            return False
-        view_ancestor = source_widget.get_ancestor(Gtk.Viewport)
-        if view_ancestor is self._viewport:
-            return True
-        return False
+            text = drop.read_text_finish(result)
+            if text:
+                cb_service = clipboard.get_instance()
+                object_id = cb_service.add_object(name="")
+                cb_service.add_object_format(object_id, "text/plain", text, on_disk=False)
+                cb_service.set_object_percent(object_id, percent=100)
+        except Exception as e:
+            logging.error("Failed to read dropped text: %s", e)
