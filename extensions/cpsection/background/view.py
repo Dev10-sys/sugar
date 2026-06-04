@@ -41,40 +41,23 @@ class Background(SectionView):
         self.connect('realize', self.__realize_cb)
         self.connect('unrealize', self.__unrealize_cb)
 
-        self.set_border_width(style.DEFAULT_SPACING * 2)
+        self.set_margin_top(style.DEFAULT_SPACING * 2)
+        self.set_margin_bottom(style.DEFAULT_SPACING * 2)
+        self.set_margin_start(style.DEFAULT_SPACING * 2)
+        self.set_margin_end(style.DEFAULT_SPACING * 2)
         self.set_spacing(style.DEFAULT_SPACING)
 
         label_box = Gtk.Box()
         label_bg = Gtk.Label(label=_('Select a background:'))
-        label_bg.modify_fg(Gtk.StateType.NORMAL,
-                           style.COLOR_SELECTION_GREY.get_gdk_color())
-        label_bg.show()
-        label_box.pack_start(label_bg, False, True, 0)
-        label_box.show()
-        self.pack_start(label_box, False, True, 1)
-
-        clear_button = Gtk.Button()
-        clear_button.set_label(_('Clear background'))
-        clear_button.connect('clicked', self._clear_clicked_cb)
-        clear_button.show()
-        self.pack_end(clear_button, False, True, 0)
+        label_box.append(label_bg)
+        self.append(label_box)
 
         scrolled_window = Gtk.ScrolledWindow()
-        scrolled_window.set_shadow_type(Gtk.ShadowType.ETCHED_IN)
+        scrolled_window.set_has_frame(True)
         scrolled_window.set_policy(Gtk.PolicyType.AUTOMATIC,
                                    Gtk.PolicyType.AUTOMATIC)
-        self.pack_start(scrolled_window, True, True, 0)
-        scrolled_window.show()
-
-        self._store = Gtk.ListStore(GdkPixbuf.Pixbuf, str)
-
-        self._icon_view = Gtk.IconView.new_with_model(self._store)
-        self._icon_view.set_selection_mode(Gtk.SelectionMode.SINGLE)
-        self._icon_view.connect('selection-changed', self._background_selected)
-        self._icon_view.set_pixbuf_column(0)
-        self._icon_view.grab_focus()
-        scrolled_window.add(self._icon_view)
-        self._icon_view.show()
+        scrolled_window.set_vexpand(True)
+        self.append(scrolled_window)
 
         alpha = self._model.get_background_alpha_level()
 
@@ -94,19 +77,29 @@ class Background(SectionView):
             button.set_icon_name(icon_name)
             button.value = value
             button.props.active = value == alpha
-            button.show()
-            alpha_box.pack_start(button, False, True, 0)
+            alpha_box.append(button)
             alpha_buttons.append(button)
 
         for button in alpha_buttons:
             button.connect('toggled', self._set_alpha_cb)
 
-        alpha_alignment = Gtk.Alignment()
-        alpha_alignment.set(0.5, 0, 0, 0)
-        alpha_alignment.add(alpha_box)
-        alpha_box.show()
-        self.pack_start(alpha_alignment, False, False, 0)
-        alpha_alignment.show()
+        alpha_box.set_halign(Gtk.Align.CENTER)
+        self.append(alpha_box)
+
+        clear_button = Gtk.Button()
+        clear_button.set_label(_('Clear background'))
+        clear_button.connect('clicked', self._clear_clicked_cb)
+        clear_button.set_valign(Gtk.Align.END)
+        self.append(clear_button)
+
+        self._store = Gtk.ListStore(GdkPixbuf.Pixbuf, str)
+
+        self._icon_view = Gtk.IconView.new_with_model(self._store)
+        self._icon_view.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        self._icon_view.connect('selection-changed', self._background_selected)
+        self._icon_view.set_pixbuf_column(0)
+        self._icon_view.grab_focus()
+        scrolled_window.set_child(self._icon_view)
 
         self._paths_list = []
 
@@ -140,10 +133,7 @@ class Background(SectionView):
         else:
             self._select_background()
             self._images_loaded = True
-            window = self.get_window()
-            if window is not None:
-                window.set_cursor(None)
-                Gdk.flush()
+            self.set_cursor(None)
             self._append_to_store_sid = None
 
     def _cancel_append_to_store(self):
@@ -153,14 +143,12 @@ class Background(SectionView):
 
     def __realize_cb(self, widget):
         if self._images_loaded:
-            self.get_window().set_cursor(None)
+            self.set_cursor(None)
         else:
-            self.get_window().set_cursor(Gdk.Cursor.new(Gdk.CursorType.WATCH))
-        Gdk.flush()
+            self.set_cursor(Gdk.Cursor.new_from_name('progress', None))
 
     def __unrealize_cb(self, widget):
-        self.get_window().set_cursor(None)
-        Gdk.flush()
+        self.set_cursor(None)
 
     def _set_alpha_cb(self, widget):
         if widget.get_active():
@@ -197,7 +185,7 @@ class Background(SectionView):
         self._model.set_background_image_path(None)
 
     def setup(self):
-        self.show_all()
+        pass
 
     def apply(self):
         self._cancel_append_to_store()

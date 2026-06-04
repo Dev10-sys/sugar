@@ -20,7 +20,6 @@ import urllib.parse
 import tempfile
 
 from gi.repository import GObject
-from gi.repository import Gtk
 from gi.repository import Gdk
 
 from sugar4 import mime
@@ -99,7 +98,7 @@ class Clipboard(GObject.GObject):
         cb_object = self._objects.pop(object_id)
         cb_object.destroy()
         if not self._objects:
-            gtk_clipboard = Gtk.Display.get_default().get_clipboard()
+            gtk_clipboard = Gdk.Display.get_default().get_clipboard()
             gtk_clipboard.set_content(None)
         self.emit('object-deleted', object_id)
         logging.debug('Deleted object with object_id %r', object_id)

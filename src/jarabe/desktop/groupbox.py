@@ -58,7 +58,6 @@ class GroupBox(ViewContainer):
         icon = FriendView(buddy_info)
         self.add(icon)
         self._friends[buddy_info.get_key()] = icon
-        icon.show()
 
     def _friend_added_cb(self, data_model, buddy_info):
         self.add_friend(buddy_info)
@@ -67,7 +66,7 @@ class GroupBox(ViewContainer):
         icon = self._friends[key]
         self.remove(icon)
         del self._friends[key]
-        icon.destroy()
+        icon.unparent()
 
     def _toolbar_query_changed_cb(self, toolbar, query):
         self._query = normalize_string(query)
@@ -75,5 +74,6 @@ class GroupBox(ViewContainer):
             if hasattr(icon, 'set_filter'):
                 icon.set_filter(self._query)
 
-    def __clear_icon_pressed_cb(self, entry, icon_pos, event):
+    def __clear_icon_pressed_cb(self, entry, icon_pos):
+        """GTK4: icon-press callback signature changed, no event param."""
         self.grab_focus()

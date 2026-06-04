@@ -151,22 +151,22 @@ class Picker(Gtk.Grid):
         self._button = EventIcon(pixel_size=style.LARGE_ICON_SIZE,
                                  icon_name=icon)
         self.attach(self._button, 0, 0, 1, 1)
-        self._button.hide()
+        self._button.set_visible(False)
 
-        self._label = Gtk.Label(label.replace(' ', '\n'))
+        self._label = Gtk.Label(label=label.replace(' ', '\n'))
         self._label.props.justify = Gtk.Justification.CENTER
         self.attach(self._label, 0, 1, 1, 1)
-        self._label.hide()
+        self._label.set_visible(False)
 
     def show_all(self):
-        self._button.show()
-        self._label.show()
-        self.show()
+        self._button.set_visible(True)
+        self._label.set_visible(True)
+        self.set_visible(True)
 
     def hide_all(self):
-        self._button.hide()
-        self._label.hide()
-        self.hide()
+        self._button.set_visible(False)
+        self._label.set_visible(False)
+        self.set_visible(False)
 
     def connect(self, callback, arg):
         self._button.connect('activate', callback, arg)
@@ -176,6 +176,15 @@ class Picker(Gtk.Grid):
 
     def set_icon(self, icon):
         self._button.set_icon_name(icon)
+
+
+def _get_screen_width():
+    display = Gdk.Display.get_default()
+    if display:
+        monitors = display.get_monitors()
+        if monitors and monitors.get_n_items() > 0:
+            return monitors.get_item(0).get_geometry().width
+    return 1024
 
 
 class AgePicker(Gtk.Grid):
@@ -203,7 +212,7 @@ class AgePicker(Gtk.Grid):
         gender_index = GENDERS.index(self._gender)
         age_index = age_to_index(self._age)
 
-        width = Gdk.Screen.width()
+        width = _get_screen_width()
 
         num_ages = len(self._group_labels.AGES)
         for i in range(num_ages):
@@ -216,14 +225,14 @@ class AgePicker(Gtk.Grid):
         fixed_size = width - 4 * style.GRID_CELL_SIZE
         self._fixed.set_size_request(fixed_size, -1)
         self.attach(self._fixed, 0, 0, 1, 1)
-        self._fixed.show()
+        self._fixed.set_visible(True)
 
         self._age_adj = Gtk.Adjustment(value=age_index, lower=0,
                                        upper=num_ages - 1, step_incr=1,
                                        page_incr=3, page_size=0)
         self._age_adj.connect('value-changed', self.__age_adj_changed_cb)
 
-        self._age_slider = Gtk.HScale()
+        self._age_slider = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL)
         self._age_slider.set_draw_value(False)
         self._age_slider.set_adjustment(self._age_adj)
         self.attach(self._age_slider, 0, 1, 1, 1)
@@ -233,10 +242,14 @@ class AgePicker(Gtk.Grid):
 
         self._configure(width)
 
-        Gdk.Screen.get_default().connect('size-changed', self._configure_cb)
+        display = Gdk.Display.get_default()
+        if display:
+            monitors = display.get_monitors()
+            if monitors and monitors.get_n_items() > 0:
+                monitors.get_item(0).connect('notify::geometry', self._configure_cb)
 
-    def _configure_cb(self, event=None):
-        width = Gdk.Screen.width()
+    def _configure_cb(self, event=None, pspec=None):
+        width = _get_screen_width()
         self._configure(width)
 
     def _configure(self, width):
@@ -252,9 +265,9 @@ class AgePicker(Gtk.Grid):
         if num_ages + 2 < width / style.LARGE_ICON_SIZE:
             for i in range(num_ages):
                 self._pickers[i].show_all()
-            self._age_slider.hide()
+            self._age_slider.set_visible(False)
         else:
-            self._age_slider.show()
+            self._age_slider.set_visible(True)
             value = self._age_adj.get_value()
             self._set_age_picker(int(value + 0.5))
 

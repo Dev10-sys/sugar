@@ -19,6 +19,7 @@ import logging
 import importlib
 
 from gi.repository import GLib
+from gi.repository import Gtk
 from gi.repository import Gdk
 #from gi.repository import SugarExt
 
@@ -36,7 +37,7 @@ from jarabe.controlpanel.gui import ControlPanel
 
 _VOLUME_STEP = sound.VOLUME_STEP
 _VOLUME_MAX = 100
-_TABBING_MODIFIER = Gdk.ModifierType.MOD1_MASK
+_TABBING_MODIFIER = getattr(Gdk.ModifierType, 'ALT_MASK', Gdk.ModifierType.MOD1_MASK)
 
 
 _actions_table = {
@@ -185,12 +186,12 @@ class KeyHandler(object):
         if shell.get_model().has_modal():
             return
 
-        self._frame.hide()
+        self._frame.set_visible(False)
 
         panel = ControlPanel(window_id)
         activity.push_shell_window(panel)
         panel.connect('hide', activity.pop_shell_window)
-        panel.show()
+        panel.set_visible(True)
 
     def handle_dump_ui_tree(self, event_time):
         print(uitree.get_root().dump())

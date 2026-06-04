@@ -19,13 +19,15 @@
 from gi.repository import Gtk
 
 
-class ViewContainer(Gtk.Container):
+# We subclass Gtk.Widget and manage children manually using
+# set_parent() / unparent() and a custom LayoutManager.
+class ViewContainer(Gtk.Widget):
     __gtype_name__ = 'SugarViewContainer'
 
     def __init__(self, layout, owner_icon, activity_icon=None, **kwargs):
-        Gtk.Container.__init__(self, **kwargs)
-        self.set_has_window(False)
+        super().__init__(**kwargs)
         self.set_can_focus(True)
+        self.set_focusable(True)
 
         self._activity_icon = None
         self._owner_icon = None
@@ -36,22 +38,20 @@ class ViewContainer(Gtk.Container):
 
         if owner_icon:
             self._owner_icon = owner_icon
-            self.add(self._owner_icon)
-            self._owner_icon.show()
+            self._owner_icon.set_parent(self)
 
         if activity_icon:
             self._activity_icon = activity_icon
-            self.add(self._activity_icon)
-            self._activity_icon.show()
+            self._activity_icon.set_parent(self)
 
-    def do_add(self, child):
+    def add(self, child):
+        """Add a child widget to this container."""
         if child != self._owner_icon and child != self._activity_icon:
             self._children.append(child)
-        if child.get_realized():
-            child.set_parent_window(self.get_parent_window())
         child.set_parent(self)
 
-    def do_remove(self, child):
+    def remove(self, child):
+        """Remove a child widget from this container."""
         was_visible = child.get_visible()
         if child in self._children:
             self._children.remove(child)
@@ -60,23 +60,39 @@ class ViewContainer(Gtk.Container):
             if was_visible and self.get_visible():
                 self.queue_resize()
 
-    def do_size_allocate(self, allocation):
-        self.set_allocation(allocation)
+    def do_size_allocate(self, width, height, baseline):
+        """GTK4 size_allocate signature: (width, height, baseline)."""
+        allocation = self.get_allocation()
         if self._owner_icon:
             self._layout.setup(allocation, self._owner_icon,
                                self._activity_icon)
 
         self._layout.allocate_children(allocation, self._children)
 
-    def do_forall(self, include_internals, callback):
-        for child in self._children:
-            callback(child)
+    def get_children(self):
+        """Return list of all children (replacement for removed do_forall)."""
+        all_children = list(self._children)
         if self._owner_icon:
-            callback(self._owner_icon)
+            all_children.append(self._owner_icon)
         if self._activity_icon:
-            callback(self._activity_icon)
+            all_children.append(self._activity_icon)
+        return all_children
 
     def set_layout(self, layout):
+        """Set the layout manager, removing all current children."""
         for child in self.get_children():
             self.remove(child)
         self._layout = layout
+
+    def do_dispose(self):
+        """GTK4: Clean up children in dispose."""
+        while self._children:
+            child = self._children.pop()
+            child.unparent()
+        if self._owner_icon:
+            self._owner_icon.unparent()
+            self._owner_icon = None
+        if self._activity_icon:
+            self._activity_icon.unparent()
+            self._activity_icon = None
+        Gtk.Widget.do_dispose(self)

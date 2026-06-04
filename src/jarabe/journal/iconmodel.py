@@ -25,7 +25,7 @@ DS_DBUS_INTERFACE = 'org.laptop.sugar.DataStore'
 DS_DBUS_PATH = '/org/laptop/sugar/DataStore'
 
 
-class IconModel(GObject.GObject, Gtk.TreeModel, Gtk.TreeDragSource):
+class IconModel(GObject.GObject, Gtk.TreeModel):
     __gtype_name__ = 'JournalIconModel'
 
     __gsignals__ = {

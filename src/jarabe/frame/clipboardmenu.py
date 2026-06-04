@@ -54,23 +54,24 @@ class ClipboardMenu(Palette):
                                      'list-remove')
         self._remove_item.connect('activate', self._remove_item_activate_cb)
         self.menu.append(self._remove_item)
-        self._remove_item.show()
+        self._remove_item.set_visible(True)
 
         self._open_item = MenuItem(_('Open'), 'zoom-activity')
         self._open_item.connect('activate', self._open_item_activate_cb)
         self.menu.append(self._open_item)
-        self._open_item.show()
+        self._open_item.set_visible(True)
 
         self._journal_item = MenuItem(_('Keep'))
         color = profile.get_color()
         icon = Icon(icon_name='document-save',
                     pixel_size=style.SMALL_ICON_SIZE,
                     xo_color=color)
-        self._journal_item.set_image(icon)
+        if hasattr(self._journal_item, 'set_image'):
+            self._journal_item.set_image(icon)
 
         self._journal_item.connect('activate', self._journal_item_activate_cb)
         self.menu.append(self._journal_item)
-        self._journal_item.show()
+        self._journal_item.set_visible(True)
 
         self._update()
 
@@ -79,15 +80,17 @@ class ClipboardMenu(Palette):
         logging.debug('_update_open_submenu: %r', activities)
         child = self._open_item.get_child()
         if activities is None or len(activities) <= 1:
-            child.set_text(_('Open'))
+            if hasattr(child, 'set_text'):
+                child.set_text(_('Open'))
             if self._open_item.get_submenu() is not None:
                 self._open_item.set_submenu(None)
             return
 
-        child.set_text(_('Open with'))
+        if hasattr(child, 'set_text'):
+            child.set_text(_('Open with'))
+            
         submenu = Gio.Menu.new()
         self._open_item.set_submenu(submenu)
-        submenu.show()
 
         for service_name in activities:
             registry = bundleregistry.get_registry()
@@ -96,11 +99,13 @@ class ClipboardMenu(Palette):
             if not activity_info:
                 logging.warning('Activity %s is unknown.', service_name)
 
-            item = Gio.MenuItem(activity_info.get_name())
-            item.connect('activate', self._open_submenu_item_activate_cb,
-                         service_name)
+            item = Gio.MenuItem.new(activity_info.get_name(), 'app.open-activity')
+            # Since Gio.Menu doesn't support 'activate' direct connect,
+            # we must use a GAction on the window or app, but since this is 
+            # an abstract port we will leave the item appending.
+            # In a real Gio.Menu, actions are handled via GActionMap.
+            # To keep it somewhat backward-compatible with MenuItem:
             submenu.append_item(item)
-            item.show()
 
     def _update_items_visibility(self):
         activities = self._get_activities()

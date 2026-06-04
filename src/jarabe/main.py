@@ -198,7 +198,7 @@ def _begin_desktop_startup(shell):
 
     home_window = homewindow.get_instance()
     shell.add_window(home_window)
-    home_window.show()
+    home_window.present()
 
     session_manager = get_session_manager()
     session_manager.start()
@@ -295,7 +295,7 @@ def _start_intro(shell, start_on_age_page=False):
 
     shell.add_window(window)
     window.connect('done', __intro_window_done_cb)
-    window.show()
+    window.present()
 
 
 def _check_profile():
@@ -344,13 +344,6 @@ def main(shell):
     brightness.get_instance()
 
     sys.path.append(config.ext_path)
-
-    try:
-        Gtk.main()
-    except KeyboardInterrupt:
-        print('Ctrl+C pressed, exiting...')
-
-    _stop_window_manager()
 
 
 shell = shell.get_model()

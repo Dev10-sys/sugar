@@ -23,7 +23,7 @@ from gi.repository import Gdk
 from jarabe.frame.framewindow import FrameWindow
 from jarabe.frame.clipboardtray import ClipboardTray
 
-from jarabe.frame import clipboard
+import jarabe.frame.clipboard as clipboard
 
 
 class ClipboardPanelWindow(FrameWindow):
@@ -34,62 +34,42 @@ class ClipboardPanelWindow(FrameWindow):
         self._frame = frame
 
         # Listening for new clipboard objects
-        # NOTE: we need to keep a reference to Gdk.Clipboard in order to keep
-        # listening to it.
-        self._clipboard = Gtk.Display.get_default().get_clipboard()
+        self._clipboard = Gdk.Display.get_default().get_clipboard()
         self._clipboard.connect('changed', self._owner_change_cb)
 
         self._clipboard_tray = ClipboardTray()
-        self._clipboard_tray.show()
+        self._clipboard_tray.set_visible(True)
         self.append(self._clipboard_tray)
 
-        # Receiving dnd drops
-        self.drag_dest_set(0, [], 0)
-        self.connect('drag-motion', self._clipboard_tray.drag_motion_cb)
-        self.connect('drag-leave', self._clipboard_tray.drag_leave_cb)
-        self.connect('drag-drop', self._clipboard_tray.drag_drop_cb)
-        self.connect('drag-data-received',
-                     self._clipboard_tray.drag_data_received_cb)
 
-    def _owner_change_cb(self, clipboard):
+    def _owner_change_cb(self, cb):
         logging.debug('owner_change_cb')
 
         if self._clipboard_tray.owns_clipboard():
             return
 
         cb_service = clipboard.get_instance()
+        formats = cb.get_formats()
 
-        content = clipboard.get_content()
-
-        if not content:
+        if formats is None or not formats.get_mime_types():
             return
 
-        formats = content.ref_formats()
+        cb.read_text_async(None, self._read_text_cb, cb_service)
 
-        if formats.is_empty():
-            return
-
-        mime_types = formats.get_mime_types()
-        content_is_uri = False
-        for mime_type in mime_types:
-            if mime_type == 'text/uri-list':
-                content_is_uri = True
-                mt = mime_type
-
-        if content_is_uri:
-            uri = content.get_value()
-            filename = uri[len('file://'):].strip()
-            md5 = self._md5_for_file(filename)
-            data_hash = hash(md5)
-        else:
-            data_hash = hash(content.get_value())
-
-        key = cb_service.add_object(name="", data_hash=data_hash)
-        if key is None:
-            return
-        cb_service.set_object_percent(key, percent=0)
-        self._add_content(key, content, mt)
-        cb_service.set_object_percent(key, percent=100)
+    def _read_text_cb(self, cb, result, cb_service):
+        try:
+            text = cb.read_text_finish(result)
+            if not text:
+                return
+            data_hash = hash(text)
+            key = cb_service.add_object(name="", data_hash=data_hash)
+            if key is None:
+                return
+            cb_service.set_object_percent(key, percent=0)
+            cb_service.add_object_format(key, "text/plain", text, on_disk=False)
+            cb_service.set_object_percent(key, percent=100)
+        except Exception as e:
+            logging.error("Failed to read clipboard: %s", e)
 
     def _md5_for_file(self, file_name):
         '''Calculate md5 for file data
@@ -106,29 +86,3 @@ class ClipboardPanelWindow(FrameWindow):
             md5.update(data)
         f.close()
         return md5.digest()
-
-    def _add_content(self, key, content, mime_type):
-        result, value = content.get_value()
-        if not result:
-            logging.warning('no data for content %s.',
-                            mime_type)
-            return
-
-        logging.debug('adding type ' + mime_type + '.')
-        cb_service = clipboard.get_instance()
-        if mime_type == 'text/uri-list':
-            uri = content.get_value()
-
-            scheme, netloc_, path_, parameters_, query_, fragment_ = \
-                urlparse(uri)
-            on_disk = (scheme == 'file')
-
-            cb_service.add_object_format(key,
-                                         mime_type,
-                                         uri,
-                                         on_disk)
-        else:
-            cb_service.add_object_format(key,
-                                         mime_type,
-                                         content.get_value(),
-                                         on_disk=False)

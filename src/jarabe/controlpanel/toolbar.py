@@ -28,7 +28,7 @@ from sugar4.graphics import iconentry
 from sugar4.graphics import style
 
 
-class MainToolbar(Gtk.Toolbar):
+class MainToolbar(Gtk.Box):
     """ Main toolbar of the control panel
     """
     __gtype_name__ = 'MainToolbar'
@@ -43,13 +43,13 @@ class MainToolbar(Gtk.Toolbar):
     }
 
     def __init__(self):
-        Gtk.Toolbar.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
 
         self._add_separator()
 
-        tool_item = Gtk.ToolItem()
-        self.insert(tool_item, -1)
-        tool_item.show()
+        tool_item = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.append(tool_item)
+        tool_item.set_visible(True)
         self._search_entry = iconentry.IconEntry()
         self._search_entry.set_icon_from_name(iconentry.ICON_ENTRY_PRIMARY,
                                               'entry-search')
@@ -58,30 +58,28 @@ class MainToolbar(Gtk.Toolbar):
         text = _('Search in %s') % _('Settings')
         self._search_entry.set_placeholder_text(text)
         self._search_entry.connect('changed', self.__search_entry_changed_cb)
-        tool_item.add(self._search_entry)
-        self._search_entry.show()
+        tool_item.append(self._search_entry)
+        self._search_entry.set_visible(True)
 
         self._add_separator(True)
 
         self.stop = ToolButton(icon_name='dialog-cancel')
-        self.stop.set_tooltip(_('Done'))
+        self.stop.set_tooltip_text(_('Done'))
         self.stop.connect('clicked', self.__stop_clicked_cb)
-        self.stop.show()
-        self.insert(self.stop, -1)
-        self.stop.show()
+        self.stop.set_visible(True)
+        self.append(self.stop)
 
     def get_entry(self):
         return self._search_entry
 
     def _add_separator(self, expand=False):
-        separator = Gtk.SeparatorToolItem()
-        separator.props.draw = False
+        separator = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
         if expand:
-            separator.set_expand(True)
+            separator.set_hexpand(True)
         else:
             separator.set_size_request(style.DEFAULT_SPACING, -1)
-        self.insert(separator, -1)
-        separator.show()
+        self.append(separator)
+        separator.set_visible(True)
 
     def __search_entry_changed_cb(self, search_entry):
         self.emit('search-changed', search_entry.props.text)
@@ -90,7 +88,7 @@ class MainToolbar(Gtk.Toolbar):
         self.emit('stop-clicked')
 
 
-class SectionToolbar(Gtk.Toolbar):
+class SectionToolbar(Gtk.Box):
     """ Toolbar of the sections of the control panel
     """
     __gtype_name__ = 'SectionToolbar'
@@ -105,7 +103,7 @@ class SectionToolbar(Gtk.Toolbar):
     }
 
     def __init__(self):
-        Gtk.Toolbar.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
 
         self._add_separator()
 
@@ -119,17 +117,17 @@ class SectionToolbar(Gtk.Toolbar):
 
         self._add_separator(True)
 
-        self.cancel_button = ToolButton('dialog-cancel')
-        self.cancel_button.set_tooltip(_('Cancel'))
+        self.cancel_button = ToolButton(icon_name='dialog-cancel')
+        self.cancel_button.set_tooltip_text(_('Cancel'))
         self.cancel_button.connect('clicked', self.__cancel_button_clicked_cb)
-        self.insert(self.cancel_button, -1)
-        self.cancel_button.show()
+        self.append(self.cancel_button)
+        self.cancel_button.set_visible(True)
 
-        self.accept_button = ToolButton('dialog-ok')
-        self.accept_button.set_tooltip(_('Ok'))
+        self.accept_button = ToolButton(icon_name='dialog-ok')
+        self.accept_button.set_tooltip_text(_('Ok'))
         self.accept_button.connect('clicked', self.__accept_button_clicked_cb)
-        self.insert(self.accept_button, -1)
-        self.accept_button.show()
+        self.append(self.accept_button)
+        self.accept_button.set_visible(True)
 
     def get_icon(self):
         return self._icon
@@ -138,24 +136,24 @@ class SectionToolbar(Gtk.Toolbar):
         return self._title
 
     def _add_separator(self, expand=False):
-        separator = Gtk.SeparatorToolItem()
-        separator.props.draw = False
+        separator = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
         if expand:
-            separator.set_expand(True)
+            separator.set_hexpand(True)
         else:
             separator.set_size_request(style.DEFAULT_SPACING, -1)
-        self.insert(separator, -1)
-        separator.show()
+        self.append(separator)
+        separator.set_visible(True)
 
     def _add_widget(self, widget, expand=False):
-        tool_item = Gtk.ToolItem()
-        tool_item.set_expand(expand)
+        tool_item = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        if expand:
+            tool_item.set_hexpand(True)
 
-        tool_item.add(widget)
-        widget.show()
+        tool_item.append(widget)
+        widget.set_visible(True)
 
-        self.insert(tool_item, -1)
-        tool_item.show()
+        self.append(tool_item)
+        tool_item.set_visible(True)
 
     def __cancel_button_clicked_cb(self, widget, data=None):
         self.emit('cancel-clicked')

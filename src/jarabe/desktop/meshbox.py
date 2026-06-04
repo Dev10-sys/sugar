@@ -94,7 +94,6 @@ class _ActivityIcon(CanvasIcon):
             menu_box.append_item(item)
 
         palette.set_content(menu_box)
-        menu_box.show_all()
 
         self.connect_to_palette_pop_events(palette)
         return palette
@@ -117,7 +116,6 @@ class ActivityView(SnowflakeLayout):
         self._icons = {}
 
         self._icon = self._create_icon()
-        self._icon.show()
         self.add_icon(self._icon, center=True)
 
         self._icon.palette_invoker.cache_palette = False
@@ -147,13 +145,12 @@ class ActivityView(SnowflakeLayout):
         icon = BuddyIcon(buddy, style.STANDARD_ICON_SIZE)
         self._icons[buddy.props.key] = icon
         self.add_icon(icon)
-        icon.show()
 
     def __buddy_removed_cb(self, activity, buddy):
         icon = self._icons[buddy.props.key]
         del self._icons[buddy.props.key]
         self.remove(icon)
-        icon.destroy()
+        icon.unparent()
 
     def set_filter(self, query):
         text_to_check = self._model.bundle.get_name().lower() + \
@@ -423,7 +420,6 @@ class MeshBox(ViewContainer):
             return
         icon = BuddyIcon(buddy_model)
         self.add(icon)
-        icon.show()
 
         if hasattr(icon, 'set_filter'):
             icon.set_filter(self._query)
@@ -435,6 +431,7 @@ class MeshBox(ViewContainer):
         icon = self._buddies[buddy_model.props.key]
         self.remove(icon)
         del self._buddies[buddy_model.props.key]
+        icon.unparent()
 
     def __buddy_notify_current_activity_cb(self, buddy_model, pspec):
         logging.debug('MeshBox.__buddy_notify_current_activity_cb %s',
@@ -448,7 +445,6 @@ class MeshBox(ViewContainer):
     def _add_activity(self, activity_model):
         icon = ActivityView(activity_model)
         self.add(icon)
-        icon.show()
 
         if hasattr(icon, 'set_filter'):
             icon.set_filter(self._query)
@@ -459,6 +455,7 @@ class MeshBox(ViewContainer):
         icon = self._activities[activity_model.activity_id]
         self.remove(icon)
         del self._activities[activity_model.activity_id]
+        icon.unparent()
 
     # add AP to its corresponding network icon on the desktop,
     # creating one if it doesn't already exist
@@ -471,7 +468,6 @@ class MeshBox(ViewContainer):
             icon = WirelessNetworkView(ap)
             self.wireless_networks[hash_value] = icon
             self.add(icon)
-            icon.show()
             if hasattr(icon, 'set_filter'):
                 icon.set_filter(self._query)
 
@@ -565,13 +561,11 @@ class MeshBox(ViewContainer):
     def _add_adhoc_network_icon(self, channel):
         icon = SugarAdhocView(channel)
         self.add(icon)
-        icon.show()
         self._adhoc_networks.append(icon)
 
     def _add_olpc_mesh_icon(self, mesh_mgr, channel):
         icon = OlpcMeshView(mesh_mgr, channel)
         self.add(icon)
-        icon.show()
         self._mesh.append(icon)
 
     def enable_olpc_mesh(self, mesh_device):
@@ -616,5 +610,5 @@ class MeshBox(ViewContainer):
             if hasattr(icon, 'set_filter'):
                 icon.set_filter(self._query)
 
-    def __clear_icon_pressed_cb(self, entry, icon_pos, event):
+    def __clear_icon_pressed_cb(self, entry, icon_pos):
         self.grab_focus()

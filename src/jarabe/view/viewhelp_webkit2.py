@@ -16,11 +16,19 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import sys
 
 import gi
-gi.require_version('WebKit2', '4.1')
 
-from gi.repository import WebKit2
+try:
+    gi.require_version('WebKit', '6.0')
+    from gi.repository import WebKit
+    WEBKIT_VER = 6
+except ValueError:
+    gi.require_version('WebKit2', '4.1')
+    from gi.repository import WebKit2 as WebKit
+    WEBKIT_VER = 4
+
 from gi.repository import Gio
 
 from sugar4 import env
@@ -36,23 +44,35 @@ class Browser():
     def __init__(self, toolbar):
         self._toolbar = toolbar
 
-        context = WebKit2.WebContext.get_default()
-        cookie_manager = context.get_cookie_manager()
-        cookie_manager.set_persistent_storage(
-            os.path.join(env.get_profile_path(), 'social-help.cookies'),
-            WebKit2.CookiePersistentStorage.SQLITE)
+        if WEBKIT_VER == 6:
+            context = WebKit.WebContext.get_default()
+            cookie_manager = context.get_cookie_manager()
+            if hasattr(cookie_manager, 'set_persistent_storage'):
+                cookie_manager.set_persistent_storage(
+                    os.path.join(env.get_profile_path(), 'social-help.cookies'),
+                    WebKit.CookiePersistentStorage.SQLITE)
 
-        self._webview = WebKit2.WebView()
-        self._webview.get_context().register_uri_scheme(
-            'help', self.__app_scheme_cb, None)
+            self._webview = WebKit.WebView()
+            self._webview.get_context().register_uri_scheme(
+                'help', self.__app_scheme_cb, None, None)
+        else:
+            context = WebKit.WebContext.get_default()
+            cookie_manager = context.get_cookie_manager()
+            cookie_manager.set_persistent_storage(
+                os.path.join(env.get_profile_path(), 'social-help.cookies'),
+                WebKit.CookiePersistentStorage.SQLITE)
+
+            self._webview = WebKit.WebView()
+            self._webview.get_context().register_uri_scheme(
+                'help', self.__app_scheme_cb, None)
 
         self._webview.connect('load-changed', self.__load_changed_cb)
         toolbar.update_back_forward(False, False)
         toolbar.connect('back-clicked', self.__back_cb)
         toolbar.connect('forward-clicked', self.__forward_cb)
-        self._webview.show()
+        self._webview.set_visible(True)
 
-    def __app_scheme_cb(self, request, user_data):
+    def __app_scheme_cb(self, request, user_data=None, *args):
         path = request.get_path()
         if path.find('_images') > -1:
             if path.find('/%s/_images/' % _get_current_language()) > -1:

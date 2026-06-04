@@ -49,7 +49,7 @@ class BuddyMenu(Palette):
         Palette.__init__(self, None, primary_text=nick, icon=buddy_icon)
         self.menu_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.set_content(self.menu_box)
-        self.menu_box.show_all()
+        self.menu_box.set_visible(True)
         self._invite_menu = None
         self._active_activity_changed_hid = None
         # Fixme: we need to make the widget accessible through the Palette API
@@ -77,11 +77,17 @@ class BuddyMenu(Palette):
             menu_item = PaletteMenuItem(_('Make friend'), 'list-add')
             menu_item.connect('activate', self._make_friend_cb)
 
-        self.menu_box.pack_start(menu_item, True, True, 0)
+        menu_item.set_vexpand(True)
+        menu_item.set_hexpand(True)
+        self.menu_box.append(menu_item)
+        menu_item.set_visible(True)
 
         self._invite_menu = PaletteMenuItem('')
         self._invite_menu.connect('activate', self._invite_friend_cb)
-        self.menu_box.pack_start(self._invite_menu, True, True, 0)
+        self._invite_menu.set_vexpand(True)
+        self._invite_menu.set_hexpand(True)
+        self.menu_box.append(self._invite_menu)
+        self._invite_menu.set_visible(True)
 
         home_model = shell.get_model()
         self._active_activity_changed_hid = home_model.connect(
@@ -108,24 +114,33 @@ class BuddyMenu(Palette):
         if show_shutdown:
             item = PaletteMenuItem(_('Shutdown'), 'system-shutdown')
             item.connect('activate', self.__shutdown_activate_cb)
-            self.menu_box.pack_start(item, True, True, 0)
+            item.set_vexpand(True)
+            item.set_hexpand(True)
+            self.menu_box.append(item)
+            item.set_visible(True)
 
         if show_restart:
             item = PaletteMenuItem(_('Restart'), 'system-restart')
             item.connect('activate', self.__reboot_activate_cb)
-            self.menu_box.pack_start(item, True, True, 0)
-            item.show()
+            item.set_vexpand(True)
+            item.set_hexpand(True)
+            self.menu_box.append(item)
+            item.set_visible(True)
 
         if show_logout:
             item = PaletteMenuItem(_('Logout'), 'system-logout')
             item.connect('activate', self.__logout_activate_cb)
-            self.menu_box.pack_start(item, True, True, 0)
-            item.show()
+            item.set_vexpand(True)
+            item.set_hexpand(True)
+            self.menu_box.append(item)
+            item.set_visible(True)
 
         item = PaletteMenuItem(_('My Settings'), 'preferences-system')
         item.connect('activate', self.__controlpanel_activate_cb)
-        self.menu_box.pack_start(item, True, True, 0)
-        item.show()
+        item.set_vexpand(True)
+        item.set_hexpand(True)
+        self.menu_box.append(item)
+        item.set_visible(True)
 
     def _quit(self, action):
         jarabe.desktop.homewindow.get_instance().busy()
@@ -140,7 +155,7 @@ class BuddyMenu(Palette):
         alert.connect('response', self.__quit_accept_cb)
 
         jarabe.desktop.homewindow.get_instance().add_alert(alert)
-        alert.show()
+        alert.set_visible(True)
 
     def __quit_accept_cb(self, alert, response_id):
         jarabe.desktop.homewindow.get_instance().remove_alert(alert)
@@ -167,7 +182,7 @@ class BuddyMenu(Palette):
 
         # show the control panel
         panel = ControlPanel()
-        panel.show()
+        panel.set_visible(True)
 
     def _update_invite_menu(self, activity):
         buddy_activity = self._buddy.props.current_activity
@@ -176,7 +191,7 @@ class BuddyMenu(Palette):
         else:
             buddy_activity_id = None
 
-        self._invite_menu.hide()
+        self._invite_menu.set_visible(False)
         if activity is None or \
            activity.is_journal() or \
            activity.get_activity_id() == buddy_activity_id:
@@ -185,15 +200,19 @@ class BuddyMenu(Palette):
         bundle_activity = ActivityBundle(activity.get_bundle_path())
         if bundle_activity.get_max_participants() > 1:
             title = activity.get_title()
-            self._invite_menu.set_label(_('Invite to %s') % title)
+            if hasattr(self._invite_menu, 'set_label'):
+                self._invite_menu.set_label(_('Invite to %s') % title)
+            elif hasattr(self._invite_menu, 'set_text'):
+                self._invite_menu.set_text(_('Invite to %s') % title)
 
             icon = Icon(file=activity.get_icon_path(),
                         pixel_size=style.SMALL_ICON_SIZE)
             icon.props.xo_color = activity.get_icon_color()
-            self._invite_menu.set_image(icon)
-            icon.show()
+            if hasattr(self._invite_menu, 'set_image'):
+                self._invite_menu.set_image(icon)
+            icon.set_visible(True)
 
-            self._invite_menu.show()
+            self._invite_menu.set_visible(True)
 
     def _cur_activity_changed_cb(self, home_model, activity_model):
         self._update_invite_menu(activity_model)
