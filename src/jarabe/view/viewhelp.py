@@ -139,7 +139,7 @@ def setup_view_help(activity):
     viewhelp = ViewHelp(activity, window_id)
     activity.push_shell_window(viewhelp)
     viewhelp.connect('hide', activity.pop_shell_window)
-    viewhelp.show()
+    viewhelp.set_visible(True)
 
 
 class ViewHelp(Gtk.Window):
@@ -153,38 +153,51 @@ class ViewHelp(Gtk.Window):
         self._mode = _MODE_HELP if has_local_help else _MODE_SOCIAL_HELP
 
         Gtk.Window.__init__(self)
-        box = Gtk.Box()
-        box.set_orientation(Gtk.Orientation.VERTICAL)
-        self.add(box)
-        box.show()
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        box.set_margin_start(style.LINE_WIDTH)
+        box.set_margin_end(style.LINE_WIDTH)
+        box.set_margin_top(style.LINE_WIDTH)
+        box.set_margin_bottom(style.LINE_WIDTH)
+        self.set_child(box)
+        box.set_visible(True)
 
         self.set_modal(True)
         self.set_decorated(False)
-        self.set_position(Gtk.WindowPosition.CENTER_ALWAYS)
-        self.set_border_width(style.LINE_WIDTH)
-        self.set_has_resize_grip(False)
+        
+        display = Gdk.Display.get_default()
+        width = 1024 - style.GRID_CELL_SIZE * 2
+        height = 768 - style.GRID_CELL_SIZE * 2
+        if display:
+            monitors = display.get_monitors()
+            if monitors and monitors.get_n_items() > 0:
+                geo = monitors.get_item(0).get_geometry()
+                width = geo.width - style.GRID_CELL_SIZE * 2
+                height = geo.height - style.GRID_CELL_SIZE * 2
 
-        width = Gdk.Screen.width() - style.GRID_CELL_SIZE * 2
-        height = Gdk.Screen.height() - style.GRID_CELL_SIZE * 2
-        self.set_size_request(width, height)
+        self.set_default_size(width, height)
 
         self.connect('realize', self.__realize_cb)
         self.connect('hide', self.__hide_cb)
-        self.connect('key-press-event', self.__key_press_event_cb)
+        
+        key_controller = Gtk.EventControllerKey()
+        key_controller.connect('key-pressed', self.__key_press_event_cb)
+        self.add_controller(key_controller)
 
         self._toolbar = Toolbar(title, has_local_help)
-        box.pack_start(self._toolbar, False, False, 0)
-        self._toolbar.show()
+        box.append(self._toolbar)
+        self._toolbar.set_visible(True)
         self._toolbar.connect('stop-clicked', self.__stop_clicked_cb)
         self._toolbar.connect('mode-changed', self.__mode_changed_cb)
 
         self._browser = Browser(self._toolbar)
 
         scrolled_window = Gtk.ScrolledWindow()
-        scrolled_window.add(self._browser.get_widget())
-        scrolled_window.show()
+        scrolled_window.set_child(self._browser.get_widget())
+        scrolled_window.set_vexpand(True)
+        scrolled_window.set_hexpand(True)
+        scrolled_window.set_visible(True)
 
-        box.pack_start(scrolled_window, True, True, 0)
+        box.append(scrolled_window)
 
         language = _get_current_language()
         self._help_state = None
@@ -201,9 +214,11 @@ class ViewHelp(Gtk.Window):
     def __stop_clicked_cb(self, widget):
         self.destroy()
 
-    def __key_press_event_cb(self, window, event):
-        if event.keyval == Gdk.KEY_Escape:
+    def __key_press_event_cb(self, controller, keyval, keycode, state):
+        if keyval == Gdk.KEY_Escape:
             self.__stop_clicked_cb(None)
+            return True
+        return False
 
     def __mode_changed_cb(self, toolbar, mode):
         if mode == _MODE_HELP:
@@ -222,14 +237,6 @@ class ViewHelp(Gtk.Window):
                                      self._social_help_uri)
 
     def __realize_cb(self, widget):
-        self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
-        window = self.get_window()
-        window.set_accept_focus(True)
-        if self.parent_window_id:
-            attributes = Gdk.WindowAttr()
-            attributes.window_type = Gdk.WindowType.FOREIGN
-            parent = Gdk.Window.new(None, attributes, None)
-            window.set_transient_for(parent)
         shell.get_model().push_modal()
 
     def __hide_cb(self, widget):
@@ -246,7 +253,7 @@ class ViewHelp(Gtk.Window):
         return path
 
 
-class Toolbar(Gtk.Toolbar):
+class Toolbar(Gtk.Box):
 
     __gsignals__ = {
         'back-clicked': (GObject.SignalFlags.RUN_FIRST, None, ([])),
@@ -256,7 +263,7 @@ class Toolbar(Gtk.Toolbar):
     }
 
     def __init__(self, activity_name, has_local_help):
-        Gtk.Toolbar.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
 
         self._add_separator(False)
 
@@ -266,13 +273,14 @@ class Toolbar(Gtk.Toolbar):
                         pixel_size=style.STANDARD_ICON_SIZE,
                         fill_color=style.COLOR_TRANSPARENT.get_svg(),
                         stroke_color=style.COLOR_WHITE.get_svg())
-            help_button.set_icon_widget(icon)
-            icon.show()
+            if hasattr(help_button, 'set_icon_widget'):
+                help_button.set_icon_widget(icon)
+            icon.set_visible(True)
             help_button.props.tooltip = _('Help Manual')
             help_button.connect('toggled', self.__button_toggled_cb,
                                 _MODE_HELP)
-            self.insert(help_button, -1)
-            help_button.show()
+            self.append(help_button)
+            help_button.set_visible(True)
             self._add_separator(False)
 
             social_help_button = RadioToolButton()
@@ -280,40 +288,43 @@ class Toolbar(Gtk.Toolbar):
                         pixel_size=style.STANDARD_ICON_SIZE,
                         fill_color=style.COLOR_TRANSPARENT.get_svg(),
                         stroke_color=style.COLOR_WHITE.get_svg())
-            social_help_button.set_icon_widget(icon)
-            icon.show()
+            if hasattr(social_help_button, 'set_icon_widget'):
+                social_help_button.set_icon_widget(icon)
+            icon.set_visible(True)
             social_help_button.props.tooltip = _('Social Help')
             social_help_button.props.group = help_button
             social_help_button.connect(
                 'toggled', self.__button_toggled_cb, _MODE_SOCIAL_HELP)
-            self.insert(social_help_button, -1)
-            social_help_button.show()
+            self.append(social_help_button)
+            social_help_button.set_visible(True)
             self._add_separator(False)
 
         self._back_button = ToolButton(icon_name='go-previous-paired')
         self._back_button.props.tooltip = _('Back')
         self._back_button.connect('clicked', self.__back_clicked_cb)
-        self.insert(self._back_button, -1)
-        self._back_button.show()
+        self.append(self._back_button)
+        self._back_button.set_visible(True)
+        
         self._forward_button = ToolButton(icon_name='go-next-paired')
         self._forward_button.props.tooltip = _('Forward')
         self._forward_button.connect('clicked', self.__forward_clicked_cb)
-        self.insert(self._forward_button, -1)
-        self._forward_button.show()
+        self.append(self._forward_button)
+        self._forward_button.set_visible(True)
 
         title = _('Help: %s') % activity_name
         self._label = Gtk.Label()
         self._label.set_markup('<b>%s</b>' % title)
-        self._label.set_alignment(0, 0.5)
-        self._add_widget(self._label)
+        self._label.set_halign(Gtk.Align.START)
+        self._label.set_valign(Gtk.Align.CENTER)
+        self._add_widget(self._label, expand=True)
 
         self._add_separator(True)
 
         stop = ToolButton(icon_name='dialog-cancel')
         stop.set_tooltip(_('Close'))
         stop.connect('clicked', self.__stop_clicked_cb)
-        self.insert(stop, -1)
-        stop.show()
+        self.append(stop)
+        stop.set_visible(True)
 
     def __stop_clicked_cb(self, widget):
         self.emit('stop-clicked')
@@ -322,22 +333,20 @@ class Toolbar(Gtk.Toolbar):
         if button.props.active:
             self.emit('mode-changed', mode)
 
-    def _add_widget(self, widget):
-        tool_item = Gtk.ToolItem()
-        tool_item.add(widget)
-        widget.show()
-        self.insert(tool_item, -1)
-        tool_item.show()
+    def _add_widget(self, widget, expand=False):
+        if expand:
+            widget.set_hexpand(True)
+        self.append(widget)
+        widget.set_visible(True)
 
     def _add_separator(self, expand=False):
-        separator = Gtk.SeparatorToolItem()
-        separator.props.draw = False
+        separator = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
         if expand:
-            separator.set_expand(True)
+            separator.set_hexpand(True)
         else:
             separator.set_size_request(style.DEFAULT_SPACING, -1)
-        self.insert(separator, -1)
-        separator.show()
+        self.append(separator)
+        separator.set_visible(True)
 
     def update_back_forward(self, can_go_back, can_go_forward):
         self._back_button.props.sensitive = can_go_back

@@ -178,14 +178,11 @@ class Activity(GObject.GObject):
     def get_icon_path(self):
         """Retrieve the activity's icon (file) name"""
         if self.is_journal():
-            icon_theme = Gtk.IconTheme.get_default()
-            info = icon_theme.lookup_icon('activity-journal',
-                                          Gtk.IconSize.SMALL_TOOLBAR, 0)
-            if not info:
+            icon_theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
+            paintable = icon_theme.lookup_icon('activity-journal', None, 24, 1, Gtk.TextDirection.LTR, 0)
+            if not paintable or not paintable.get_file():
                 return None
-            fname = info.get_filename()
-            del info
-            return fname
+            return paintable.get_file().get_path()
         if self._activity_info:
             return self._activity_info.get_icon()
         return None

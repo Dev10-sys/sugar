@@ -19,8 +19,8 @@ from gettext import gettext as _
 from gi.repository import Gio
 from gi.repository import Gtk
 from gi.repository import Gdk
+from gi.repository import GObject
 
-from gi.repository import SugarExt
 from sugar4.graphics import style
 
 from jarabe.model import shell
@@ -34,26 +34,38 @@ class LaunchWindow(Gtk.Window):
 
     def __init__(self, activity_id, icon_path, icon_color):
         Gtk.Window.__init__(self)
-        self.set_has_resize_grip(False)
-
-        self.props.type_hint = Gdk.WindowTypeHint.SPLASHSCREEN
-        self.modify_bg(Gtk.StateType.NORMAL, style.COLOR_WHITE.get_gdk_color())
+        
+        css_provider = Gtk.CssProvider()
+        css = "* { background-color: white; }"
+        css_provider.load_from_data(css.encode('utf-8'))
+        style_context = self.get_style_context()
+        style_context.add_provider(css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         canvas = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        canvas.show()
-        self.add(canvas)
+        canvas.set_visible(True)
+        self.set_child(canvas)
 
-        bar_size = Gdk.Screen.height() / 5 * 2
+        display = Gdk.Display.get_default()
+        screen_height = 768
+        screen_width = 1024
+        if display:
+            monitors = display.get_monitors()
+            if monitors and monitors.get_n_items() > 0:
+                geo = monitors.get_item(0).get_geometry()
+                screen_width, screen_height = geo.width, geo.height
+
+        bar_size = screen_height / 5 * 2
 
         header = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        header.set_size_request(-1, bar_size)
-        header.show()
-        canvas.pack_start(header, False, True, 0)
+        header.set_size_request(-1, int(bar_size))
+        header.set_visible(True)
+        canvas.append(header)
 
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        box.set_size_request(Gdk.Screen.width() / 5, -1)
-        box.show()
-        canvas.pack_start(box, True, True, 0)
+        box.set_size_request(int(screen_width / 5), -1)
+        box.set_vexpand(True)
+        box.set_visible(True)
+        canvas.append(box)
 
         self._activity_id = activity_id
 
@@ -64,50 +76,52 @@ class LaunchWindow(Gtk.Window):
         self._activity_icon.set_zooming(style.SMALL_ICON_SIZE,
                                         style.XLARGE_ICON_SIZE, 10)
         self._activity_icon.set_pulsing(True)
-        self._activity_icon.show()
-        box.pack_start(self._activity_icon, True, False, 0)
+        self._activity_icon.set_visible(True)
+        
+        self._activity_icon.set_hexpand(True)
+        box.append(self._activity_icon)
 
         footer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=style.DEFAULT_SPACING)
-        footer.set_size_request(-1, bar_size)
-        footer.show()
-        canvas.pack_end(footer, False, True, 0)
+        footer.set_size_request(-1, int(bar_size))
+        footer.set_visible(True)
+        canvas.append(footer)
 
         self.error_text = Gtk.Label()
         self.error_text.props.use_markup = True
-        footer.pack_start(self.error_text, False, True, 0)
+        footer.append(self.error_text)
 
-        button_box = Gtk.Alignment.new(0.5, 0, 0, 0)
-        button_box.show()
-        footer.pack_start(button_box, False, True, 0)
-        self.cancel_button = Gtk.Button(stock=Gtk.STOCK_STOP)
-        button_box.add(self.cancel_button)
+        button_box = Gtk.Box()
+        button_box.set_halign(Gtk.Align.CENTER)
+        button_box.set_valign(Gtk.Align.START)
+        button_box.set_visible(True)
+        footer.append(button_box)
+        
+        self.cancel_button = Gtk.Button.new_from_icon_name('process-stop')
+        button_box.append(self.cancel_button)
 
-        self.connect('realize', self.__realize_cb)
-
-        screen = Gdk.Screen.get_default()
-        screen.connect('size-changed', self.__size_changed_cb)
+        if display:
+            monitors = display.get_monitors()
+            monitors.connect('items-changed', self.__size_changed_cb)
 
         self._home = shell.get_model()
         self._home.connect('active-activity-changed',
                            self.__active_activity_changed_cb)
 
-        self.connect('destroy', self.__destroy_cb)
-
         self._update_size()
 
-    def show(self):
-        self.present()
-
     def _update_size(self):
-        self.resize(Gdk.Screen.width(), Gdk.Screen.height())
+        display = Gdk.Display.get_default()
+        screen_height = 768
+        screen_width = 1024
+        if display:
+            monitors = display.get_monitors()
+            if monitors and monitors.get_n_items() > 0:
+                geo = monitors.get_item(0).get_geometry()
+                screen_width, screen_height = geo.width, geo.height
+                
+        self.set_default_size(screen_width, screen_height)
 
-    def __realize_cb(self, widget):
-        window = widget.get_window()
-        data = GObject.GObject()
-        setattr(data, 'activity_id', str(self._activity_id))
-        window.set_user_data(data)
-
-    def __size_changed_cb(self, screen):
+    def __size_changed_cb(self, list_model, position, removed, added):
         self._update_size()
 
     def __active_activity_changed_cb(self, model, activity):
@@ -116,9 +130,10 @@ class LaunchWindow(Gtk.Window):
         else:
             self._activity_icon.props.paused = True
 
-    def __destroy_cb(self, box):
+    def do_unrealize(self):
         self._activity_icon.props.pulsing = False
         self._home.disconnect_by_func(self.__active_activity_changed_cb)
+        Gtk.Window.do_unrealize(self)
 
 
 def setup():
@@ -140,7 +155,7 @@ def add_launcher(activity_id, icon_path, icon_color):
         return
 
     launch_window = LaunchWindow(activity_id, icon_path, icon_color)
-    launch_window.show()
+    launch_window.set_visible(True)
 
     model.add_window(launch_window)
     model.register_launcher(activity_id, launch_window)
@@ -160,12 +175,12 @@ def __launch_failed_cb(home_model, home_activity):
     else:
         launcher.error_text.props.label = _('<b>%s</b> failed to start.') % \
             home_activity.get_activity_name()
-        launcher.error_text.show()
+        launcher.error_text.set_visible(True)
 
         launcher.cancel_button.connect('clicked',
                                        __cancel_button_clicked_cb,
                                        home_activity)
-        launcher.cancel_button.show()
+        launcher.cancel_button.set_visible(True)
 
 
 def __cancel_button_clicked_cb(button, home_activity):

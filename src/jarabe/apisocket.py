@@ -92,7 +92,7 @@ class ActivityAPI(API):
     def show_object_chooser(self, request):
         chooser = ObjectChooser(self._activity)
         chooser.connect('response', self._chooser_response_cb, request)
-        chooser.show()
+        chooser.set_visible(True)
 
     def _chooser_response_cb(self, chooser, response_id, request):
         if response_id == Gtk.ResponseType.ACCEPT:
