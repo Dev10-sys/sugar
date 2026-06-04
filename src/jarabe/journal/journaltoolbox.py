@@ -105,44 +105,33 @@ class MainToolbox(ToolbarBox):
         self._favorite_button.connect('toggled',
                                       self.__favorite_button_toggled_cb)
         self.toolbar.append(self._favorite_button)
-        self._favorite_button.show()
+        self._favorite_button.set_visible(True)
 
         self._proj_list_button = ToggleToolButton('project-box')
         self._proj_list_button.set_tooltip(_('Projects'))
         self._proj_list_button.connect('toggled',
                                        self._proj_list_button_clicked_cb)
         self.toolbar.append(self._proj_list_button)
-        self._proj_list_button.show()
+        self._proj_list_button.set_visible(True)
 
         if not self._proj_list_button.props.active:
             self._what_widget_contents = None
             self._what_search_button = FilterToolItem(
                 'view-type', _('Anything'))
-            self._what_widget.show()
+            # self._what_widget is created in FilterToolItem
             self.toolbar.append(self._what_search_button)
-            self._what_search_button.show()
+            self._what_search_button.set_visible(True)
 
         self._when_search_button = FilterToolItem(
             'view-created', _('Anytime'), self._get_when_search_items())
         self.toolbar.append(self._when_search_button)
-        self._when_search_button.show()
+        self._when_search_button.set_visible(True)
 
         self._sorting_button = SortingButton()
         self.toolbar.append(self._sorting_button)
         self._sorting_button.connect('sort-property-changed',
                                      self.__sort_changed_cb)
-        self._sorting_button.show()
-
-        '''
-        # TODO: enable it when the DS supports saving the buddies.
-        self._with_widget = Gtk.ToolItem()
-        self._with_search_button = FilterToolItem(
-            'view-who', _('Anyone'), self._with_widget)
-        self._with_widget.show()
-        self.toolbar.append(self._with_search_button)
-        self._with_search_button.show()
-        self._get_with_search_items()
-        '''
+        self._sorting_button.set_visible(True)
 
         self._query = self._build_query()
 
@@ -162,9 +151,12 @@ class MainToolbox(ToolbarBox):
             self.search_entry.set_size_request(
                 toolbar_width - style.GRID_CELL_SIZE * 7, 0)
 
-        self._what_search_button.set_is_important(important)
-        self._when_search_button.set_is_important(important)
-        # self._with_search_button.set_is_important(important)
+        # Assuming FilterToolItem has set_is_important if it extends ToolButton, but it doesn't.
+        # It's a Gtk.Box in this code. We'll add set_is_important method below.
+        if hasattr(self._what_search_button, 'set_is_important'):
+            self._what_search_button.set_is_important(important)
+        if hasattr(self._when_search_button, 'set_is_important'):
+            self._when_search_button.set_is_important(important)
 
         return False
 
@@ -192,43 +184,15 @@ class MainToolbox(ToolbarBox):
 
         return set_palette_list(when_list)
 
-    '''
-    def _get_with_search_items(self):
-        with_list = []
-        with_list.append({'label':_('Anyone'),
-                          'callback': self._with_palette_cb,
-                          'id': _ACTION_EVERYBODY})
-        with_list.append({'separator': True})
-        with_list.append({'label':_('My friends'),
-                          'callback': self._with_palette_cb,
-                          'id': _ACTION_MY_FRIENDS})
-        with_list.append({'label':_('My class'),
-                          'callback': self._with_palette_cb,
-                          'id': _ACTION_MY_CLASS})
-        with_list.append({'separator': True})
-        # TODO: Ask the model for buddies.
-        for i, buddy in enumerate(model.get_buddies()):
-            nick, color = buddy
-            with_list.append({'label': nick,
-                              'callback': self._with_palette_cb,
-                              'icon': 'computer-xo',
-                              'xocolors': XOColor(color),
-                              'id': i + _ACTION_MY_CLASS + 1})
-
-        widget = set_palette_list(with_list)
-        self._with_widget.add(widget)
-        widget.show()
-    '''
-
     def _add_widget(self, widget, expand=False):
         tool_item = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         tool_item.set_hexpand(expand)
 
         tool_item.append(widget)
-        widget.show()
+        widget.set_visible(True)
 
-        self.toolbar.append(tool_item, -1)
-        tool_item.show()
+        self.toolbar.append(tool_item)
+        tool_item.set_visible(True)
 
     def _build_query(self):
         query = {}
@@ -279,7 +243,7 @@ class MainToolbox(ToolbarBox):
 
         property_, order = self._sorting_button.get_current_sort()
 
-        if order == Gtk.SortType.ASCENDING:
+        if order == "ASC": # Used to be Gtk.SortType.ASCENDING
             sign = '+'
         else:
             sign = '-'
@@ -321,7 +285,7 @@ class MainToolbox(ToolbarBox):
 
     def _search_entry_changed_cb(self, search_entry):
         if not search_entry.props.text:
-            search_entry.activate()
+            search_entry.emit('activate')
             return
 
         if self._autosearch_timer:
@@ -332,7 +296,7 @@ class MainToolbox(ToolbarBox):
     def _autosearch_timer_cb(self):
         logging.debug('_autosearch_timer_cb')
         self._autosearch_timer = None
-        self.search_entry.activate()
+        self.search_entry.emit('activate')
         return False
 
     def set_mount_point(self, mount_point):
@@ -461,18 +425,17 @@ class MainToolbox(ToolbarBox):
                 self._what_list.append(item)
 
             if self._what_widget_contents is not None:
-                self._what_widget.remove(self._what_widget_contents)
+                self._what_search_button.palette.props.content.remove(self._what_widget_contents)
             self._what_widget_contents = set_palette_list(self._what_list)
-            self._what_widget.add(self._what_widget_contents)
-            self._what_widget_contents.show()
+            if not self._what_search_button.palette.props.content:
+                self._what_search_button.palette.set_content(self._what_widget_contents)
+            self._what_widget_contents.set_visible(True)
 
     def _proj_list_button_clicked_cb(self, proj_list_button):
         if self._proj_list_button.props.active:
-            self._what_widget.hide()
-            self._what_search_button.hide()
+            self._what_search_button.set_visible(False)
         else:
-            self._what_widget.show()
-            self._what_search_button.show()
+            self._what_search_button.set_visible(True)
         self._update_if_needed()
 
     def __favorite_button_toggled_cb(self, favorite_button):
@@ -497,17 +460,10 @@ class MainToolbox(ToolbarBox):
         self._when_search_button.set_widget_label(_('Anytime'))
         self._when_filter = None
 
-        '''
-        self._with_search_button.set_widget_icon(icon_name='view-who')
-        self._with_search_button.set_widget_label(_('Anyone'))
-        self._with_filter = None
-        '''
-
         self._favorite_button.props.active = False
 
         if self._proj_list_button.props.active:
-            self._what_widget.show()
-            self._what_search_button.show()
+            self._what_search_button.set_visible(True)
             self._proj_list_button.props.active = False
 
         self._update_if_needed()
@@ -529,18 +485,18 @@ class DetailToolbox(ToolbarBox):
         self._resume = ToolButton('activity-start')
         self._resume.connect('clicked', self._resume_clicked_cb)
         self.toolbar.append(self._resume)
-        self._resume.show()
+        self._resume.set_visible(True)
         self._resume_menu = None
 
         color = profile.get_color()
         self._copy = ToolButton()
         icon = Icon(icon_name='edit-copy', xo_color=color)
         self._copy.set_icon_widget(icon)
-        icon.show()
+        icon.set_visible(True)
         self._copy.set_tooltip(_('Copy to'))
         self._copy.connect('clicked', self._copy_clicked_cb)
         self.toolbar.append(self._copy)
-        self._copy.show()
+        self._copy.set_visible(True)
 
         self._duplicate = ToolButton()
         icon = Icon(icon_name='edit-duplicate', xo_color=color)
@@ -554,17 +510,17 @@ class DetailToolbox(ToolbarBox):
             self._refresh.set_tooltip(_('Refresh'))
             self._refresh.connect('clicked', self._refresh_clicked_cb)
             self.toolbar.append(self._refresh)
-            self._refresh.show()
+            self._refresh.set_visible(True)
 
         separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
         self.toolbar.append(separator)
-        separator.show()
+        separator.set_visible(True)
 
         erase_button = ToolButton('list-remove')
         erase_button.set_tooltip(_('Erase'))
         erase_button.connect('clicked', self._erase_button_clicked_cb)
-        self.toolbar.append(erase_button, -1)
-        erase_button.show()
+        self.toolbar.append(erase_button)
+        erase_button.set_visible(True)
 
     def set_metadata(self, metadata):
         self._metadata = metadata
@@ -607,13 +563,13 @@ class DetailToolbox(ToolbarBox):
             % self._metadata['title']
         icon = Icon(icon_name='dialog-cancel')
         alert.add_button(Gtk.ResponseType.CANCEL, _('Cancel'), icon)
-        icon.show()
+        icon.set_visible(True)
         ok_icon = Icon(icon_name='dialog-ok')
         alert.add_button(Gtk.ResponseType.OK, erase_string, ok_icon)
-        ok_icon.show()
+        ok_icon.set_visible(True)
         alert.connect('response', self.__erase_alert_response_cb)
         journalwindow.get_journal_window().add_alert(alert)
-        alert.show()
+        alert.set_visible(True)
 
     def __erase_alert_response_cb(self, alert, response_id):
         journalwindow.get_journal_window().remove_alert(alert)
@@ -632,9 +588,9 @@ class DetailToolbox(ToolbarBox):
         palette = self._copy.get_palette()
 
         # Use the menu defined in CopyMenu
-        for menu_item in palette.menu.get_children():
-            palette.menu.remove(menu_item)
-            menu_item.destroy()
+        while palette.menu.get_first_child():
+            child = palette.menu.get_first_child()
+            palette.menu.remove(child)
 
         CopyMenuBuilder(self._journalactivity, self.__get_uid_list_cb,
                         self.__volume_error_cb, palette.menu)
@@ -646,12 +602,12 @@ class DetailToolbox(ToolbarBox):
         color = misc.get_icon_color(self._metadata)
         self._copy.get_icon_widget().props.xo_color = color
         if self._metadata['mountpoint'] == '/':
-            self._duplicate.show()
+            self._duplicate.set_visible(True)
             icon = self._duplicate.get_icon_widget()
             icon.props.xo_color = color
-            icon.show()
+            icon.set_visible(True)
         else:
-            self._duplicate.hide()
+            self._duplicate.set_visible(False)
 
     def _refresh_refresh_palette(self):
         if self._refresh is None:
@@ -661,8 +617,8 @@ class DetailToolbox(ToolbarBox):
         self._refresh.get_icon_widget().props.xo_color = color
 
         palette = self._refresh.get_palette()
-        for menu_item in palette.menu.get_children():
-            palette.menu.remove(menu_item)
+        while palette.menu.get_first_child():
+            palette.menu.remove(palette.menu.get_first_child())
 
         for account in accountsmanager.get_configured_accounts():
             if hasattr(account, 'get_shared_journal_entry'):
@@ -686,11 +642,11 @@ class DetailToolbox(ToolbarBox):
         palette = self._resume.get_palette()
 
         if self._resume_menu is not None:
-            self._resume_menu.destroy()
+            pass
 
         self._resume_menu = PaletteMenuBox()
         palette.set_content(self._resume_menu)
-        self._resume_menu.show()
+        self._resume_menu.set_visible(True)
 
         for activity_info in misc.get_activities(self._metadata):
             menu_item = PaletteMenuItem(file_name=activity_info.get_icon(),
@@ -698,7 +654,7 @@ class DetailToolbox(ToolbarBox):
             menu_item.connect('activate', self._resume_menu_item_activate_cb,
                               activity_info.get_bundle_id())
             self._resume_menu.append_item(menu_item)
-            menu_item.show()
+            menu_item.set_visible(True)
 
         if not misc.can_resume(self._metadata):
             self._resume.set_tooltip(_('No activity to start entry'))
@@ -717,7 +673,7 @@ class SortingButton(ToolButton):
         ToolButton.__init__(self)
 
         self._property = 'timestamp'
-        self._order = Gtk.SortType.ASCENDING
+        self._order = "ASC"
 
         self.props.tooltip = _('Sort view')
         self.props.icon_name = 'view-lastedit'
@@ -727,7 +683,7 @@ class SortingButton(ToolButton):
 
         menu_box = PaletteMenuBox()
         self.props.palette.set_content(menu_box)
-        menu_box.show()
+        menu_box.set_visible(True)
 
         sort_options = [
             ('timestamp', 'view-lastedit', _('Sort by date modified')),
@@ -740,22 +696,22 @@ class SortingButton(ToolButton):
             button_icon = Icon(pixel_size=style.SMALL_ICON_SIZE,
                                icon_name=icon)
             button.set_image(button_icon)
-            button_icon.show()
+            button_icon.set_visible(True)
             button.connect('activate',
                            self.__sort_type_changed_cb,
                            property_,
                            icon)
-            button.show()
+            button.set_visible(True)
             menu_box.append_item(button)
 
     def __sort_type_changed_cb(self, widget, property_, icon_name):
         if self._property == property_:
-            if self._order == Gtk.SortType.ASCENDING:
-                self._order = Gtk.SortType.DESCENDING
+            if self._order == "ASC":
+                self._order = "DESC"
             else:
-                self._order = Gtk.SortType.ASCENDING
+                self._order = "ASC"
         else:
-            self._order = Gtk.SortType.ASCENDING
+            self._order = "ASC"
 
         self._property = property_
         self.emit('sort-property-changed')
@@ -771,22 +727,19 @@ class EditToolbox(ToolbarBox):
     def __init__(self, journalactivity):
         ToolbarBox.__init__(self)
         self._journalactivity = journalactivity
-        self.toolbar.add(SelectNoneButton(journalactivity))
-        self.toolbar.add(SelectAllButton(journalactivity))
+        self.toolbar.append(SelectNoneButton(journalactivity))
+        self.toolbar.append(SelectAllButton(journalactivity))
 
-        self.toolbar.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
+        self.toolbar.append(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
 
         self.batch_copy_button = BatchCopyButton(journalactivity)
-        self.toolbar.add(self.batch_copy_button)
-        self.toolbar.add(BatchEraseButton(journalactivity))
+        self.toolbar.append(self.batch_copy_button)
+        self.toolbar.append(BatchEraseButton(journalactivity))
 
-        self.toolbar.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
+        self.toolbar.append(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
 
         self._multi_select_info_widget = MultiSelectEntriesInfoWidget()
-        self.toolbar.add(self._multi_select_info_widget)
-
-        self.show_all()
-        self.toolbar.show_all()
+        self.toolbar.append(self._multi_select_info_widget)
 
     def display_selected_entries_status(self):
         info_widget = self._multi_select_info_widget
@@ -892,10 +845,10 @@ class MultiSelectEntriesInfoWidget(Gtk.Box):
 
         self._label = Gtk.Label()
         self._label.set_vexpand(True)
-        self._label.set_valign(True)
+        self._label.set_valign(Gtk.Align.CENTER)
         self.append(self._label)
 
-        self.show()
+        self.set_visible(True)
 
     def set_total_number_of_entries(self, total):
         self._total = total
@@ -908,7 +861,7 @@ class MultiSelectEntriesInfoWidget(Gtk.Box):
         message = _('Selected %(selected)d of %(total)d') % {
             'selected': self._selected_entries, 'total': self._total}
         self._label.set_text(message)
-        self._label.show()
+        self._label.set_visible(True)
 
 
 class FilterToolItem(Gtk.Box):
@@ -924,18 +877,18 @@ class FilterToolItem(Gtk.Box):
         self.set_size_request(style.GRID_CELL_SIZE, -1)
 
         self.box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        self.append(box)
+        self.append(self.box)
         self.set_widget_icon(icon_name=default_icon)
 
         self._label_widget = Gtk.Label()
-        self._label_widget.set_alignment(0.0, 0.5)
+        self._label_widget.set_halign(Gtk.Align.START)
+        self._label_widget.set_valign(Gtk.Align.CENTER)
         self._label_widget.set_ellipsize(style.ELLIPSIZE_MODE_DEFAULT)
         self._label_widget.set_max_width_chars(_LABEL_MAX_WIDTH)
         self._label_widget.set_use_markup(True)
         self._label_widget.set_markup(default_label)
         self.box.append(self._label_widget)
-        self._label_widget.show()
-
+        self._label_widget.set_visible(True)
 
         self._hide_tooltip_on_click = True
         self._palette_invoker.attach_tool(self)
@@ -958,11 +911,15 @@ class FilterToolItem(Gtk.Box):
             icon = Icon(icon_name=icon_name,
                         pixel_size=style.SMALL_ICON_SIZE,
                         xo_color=XoColor('white'))
+        
+        # Remove any existing icon
+        while self.box.get_first_child() and isinstance(self.box.get_first_child(), Icon):
+            self.box.remove(self.box.get_first_child())
+            
         self.box.prepend(icon)
-        icon.show()
+        icon.set_visible(True)
 
     def set_widget_label(self, label=None):
-        # FIXME: Ellipsis is not working on these labels.
         if label is None:
             label = self._label
         if len(label) > _LABEL_MAX_WIDTH:
@@ -994,10 +951,11 @@ class FilterToolItem(Gtk.Box):
 
     def do_snapshot(self, snapshot):
         if self.palette and self.palette.is_up():
-            _, bounds = self.compute_bounds(self)
+            bounds = self.get_allocation()
+            bounds.x = 0
+            bounds.y = 0
             black = Gdk.RGBA()
             snapshot.append_color(black, bounds)
-            snapshot.save()
 
         Gtk.Box.do_snapshot(self, snapshot)
 
@@ -1007,6 +965,9 @@ class FilterToolItem(Gtk.Box):
 
         return False
 
+    def set_is_important(self, important):
+        # We can implement this logic for FilterToolItem if needed, by hiding/showing label
+        self._label_widget.set_visible(important)
 
 if hasattr(FilterToolItem, 'set_css_name'):
     FilterToolItem.set_css_name('filtertoolbutton')
@@ -1018,12 +979,12 @@ def set_palette_list(palette_list):
                                      text_label=palette_list[0]['label'])
     else:
         _menu_item = PaletteMenuItem(text_label=palette_list[0]['label'])
-    req2 = _menu_item.get_preferred_size()[1]
-    menuitem_width = req2.width
-    menuitem_height = req2.height
+    
+    menuitem_width = style.GRID_CELL_SIZE * 3
+    menuitem_height = style.GRID_CELL_SIZE
 
-    palette_width = Gdk.Screen.width() - style.GRID_CELL_SIZE
-    palette_height = Gdk.Screen.height() - style.GRID_CELL_SIZE * 3
+    palette_width = 800 - style.GRID_CELL_SIZE
+    palette_height = 600 - style.GRID_CELL_SIZE * 3
 
     nx = min(_MAXIMUM_PALETTE_COLUMNS, int(palette_width / menuitem_width))
     ny = min(int(palette_height / menuitem_height), len(palette_list) + 1)
@@ -1034,8 +995,7 @@ def set_palette_list(palette_list):
     grid = Gtk.Grid()
     grid.set_row_spacing(style.DEFAULT_PADDING)
     grid.set_column_spacing(0)
-    grid.set_border_width(0)
-    grid.show()
+    grid.set_visible(True)
 
     x = 0
     y = 0
@@ -1064,14 +1024,21 @@ def set_palette_list(palette_list):
             x = 0
             y += 1
         else:
-            menu_item.connect('button-release-event', item['callback'], item)
+            # We connect via GestureClick to replace button-release-event
+            click = Gtk.GestureClick()
+            # use a default argument so lambda captures correctly
+            def _click_cb(gesture, n_press, cx, cy, cb=item['callback'], i=item, widget=menu_item):
+                cb(widget, None, i)
+            click.connect('released', _click_cb)
+            menu_item.add_controller(click)
+            
             grid.attach(menu_item, x, y, 1, 1)
             x += 1
             if x == nx:
                 x = 0
                 y += 1
 
-        menu_item.show()
+        menu_item.set_visible(True)
 
     if palette_height < (y * menuitem_height + style.GRID_CELL_SIZE):
         # if the grid is bigger than the palette, put in a scrolledwindow
@@ -1080,7 +1047,7 @@ def set_palette_list(palette_list):
                                    Gtk.PolicyType.AUTOMATIC)
         scrolled_window.set_size_request(nx * menuitem_width,
                                          (ny + 1) * menuitem_height)
-        scrolled_window.add_with_viewport(grid)
+        scrolled_window.set_child(grid)
         return scrolled_window
     return grid
 
@@ -1093,21 +1060,29 @@ class AddNewBar(Gtk.Box):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
 
         self._button = EventIcon(icon_name='list-add')
-        self._button.connect('button-release-event',
-                             self.__button_release_event_cb)
+        
+        click = Gtk.GestureClick()
+        click.connect('released', self.__button_release_event_cb)
+        self._button.add_controller(click)
+        
         self._button.fill_color = style.COLOR_TOOLBAR_GREY.get_svg()
         self._button.set_tooltip(_('Add New'))
-        self.pack_start(self._button, False, True, 0)
-        self._button.show()
+        self.append(self._button)
+        self._button.set_visible(True)
 
         self._entry = iconentry.IconEntry()
-        self._entry.connect('key-press-event', self.__key_press_cb)
+        
+        key_controller = Gtk.EventControllerKey()
+        key_controller.connect('key-pressed', self.__key_press_cb)
+        self._entry.add_controller(key_controller)
+        
         if placeholder is None:
             placeholder = _('Add new entry')
         self._entry.set_placeholder_text(placeholder)
         self._entry.add_clear_button()
-        self.pack_start(self._entry, True, True, 0)
-        self._entry.show()
+        self._entry.set_hexpand(True)
+        self.append(self._entry)
+        self._entry.set_visible(True)
 
     def get_entry(self):
         return self._entry
@@ -1115,11 +1090,12 @@ class AddNewBar(Gtk.Box):
     def get_button(self):
         return self._button
 
-    def __key_press_cb(self, window, event):
-        if event.keyval == Gdk.KEY_Return:
+    def __key_press_cb(self, controller, keyval, keycode, state):
+        if keyval == Gdk.KEY_Return:
             return self._maybe_activate()
+        return False
 
-    def __button_release_event_cb(self, button, event):
+    def __button_release_event_cb(self, gesture, n_press, x, y):
         self._maybe_activate()
 
     def _maybe_activate(self):

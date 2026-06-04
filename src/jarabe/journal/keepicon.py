@@ -25,32 +25,31 @@ class KeepIcon(Gtk.ToggleButton):
 
     def __init__(self):
         Gtk.ToggleButton.__init__(self)
-        self.set_relief(Gtk.ReliefStyle.NONE)
-        self.set_focus_on_click(False)
+        self.props.has_frame = False
+        self.props.focusable = False
 
         self._icon = Icon(icon_name='emblem-favorite',
                           pixel_size=style.SMALL_ICON_SIZE)
-        self.set_image(self._icon)
+        self.set_child(self._icon)
         self.connect('toggled', self.__toggled_cb)
-        self.connect('button-press-event', self.__button_press_event_cb)
-        self.connect('button-release-event', self.__button_release_event_cb)
+
+        click = Gtk.GestureClick()
+        click.connect('pressed', self.__button_press_event_cb)
+        click.connect('released', self.__button_release_event_cb)
+        self.add_controller(click)
 
         self._xo_color = profile.get_color()
 
-    def do_get_preferred_width(self):
-        return 0, style.GRID_CELL_SIZE
+        self.set_size_request(style.GRID_CELL_SIZE, style.GRID_CELL_SIZE)
 
-    def do_get_preferred_height(self):
-        return 0, style.GRID_CELL_SIZE
-
-    def __button_press_event_cb(self, widget, event):
+    def __button_press_event_cb(self, gesture, n_press, x, y):
         # We need to use a custom CSS class because in togglebuttons
         # the 'active' class doesn't only match the button press, they
         # can be left in the active state.
         style_context = self.get_style_context()
         style_context.add_class('toggle-press')
 
-    def __button_release_event_cb(self, widget, event):
+    def __button_release_event_cb(self, gesture, n_press, x, y):
         style_context = self.get_style_context()
         style_context.remove_class('toggle-press')
 

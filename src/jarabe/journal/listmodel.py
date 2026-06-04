@@ -34,7 +34,7 @@ DS_DBUS_INTERFACE = 'org.laptop.sugar.DataStore'
 DS_DBUS_PATH = '/org/laptop/sugar/DataStore'
 
 
-class ListModel(GObject.GObject, Gtk.TreeModel, Gtk.TreeDragSource):
+class ListModel(GObject.GObject, Gtk.TreeModel):
     __gtype_name__ = 'JournalListModel'
 
     __gsignals__ = {
@@ -270,28 +270,6 @@ class ListModel(GObject.GObject, Gtk.TreeModel, Gtk.TreeDragSource):
 
     def do_iter_parent(self, iterator):
         return (False, Gtk.TreeIter())
-
-    def do_drag_data_get(self, path, selection):
-        uid = self[path][ListModel.COLUMN_UID]
-        target_atom = selection.get_target()
-        target_name = target_atom.name()
-        if target_name == 'text/uri-list':
-            # Only get a new temp path if we have a new file, the frame
-            # requests a path many times and if we give it a new path it
-            # ends up with a broken path
-            if uid != self._temp_drag_file_uid:
-                # Get hold of a reference so the temp file doesn't get deleted
-                self._temp_drag_file_path = model.get_file(uid)
-                self._temp_drag_file_uid = uid
-            logging.debug('putting %r in selection', self._temp_drag_file_path)
-            selection.set(target_atom, 8, self._temp_drag_file_path)
-            return True
-        if target_name == 'journal-object-id':
-            # uid is unicode but Gtk.SelectionData.set() needs str
-            selection.set(target_atom, 8, str(uid))
-            return True
-
-        return False
 
     def set_selected(self, uid, value):
         if value:
