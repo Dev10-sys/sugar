@@ -35,8 +35,7 @@ class FriendView(Gtk.Box):
         self._buddy = buddy
         self._buddy_icon = BuddyIcon(buddy)
         self._buddy_icon.props.pixel_size = size
-        self.add(self._buddy_icon)
-        self._buddy_icon.show()
+        self.append(self._buddy_icon)
 
         self._activity_icon = CanvasIcon(pixel_size=size)
         self._update_activity()
@@ -55,7 +54,7 @@ class FriendView(Gtk.Box):
 
     def _remove_activity_icon(self):
         if self._activity_icon.get_visible():
-            self._activity_icon.hide()
+            self._activity_icon.set_visible(False)
             self.remove(self._activity_icon)
 
     def __buddy_notify_current_activity_cb(self, buddy, pspec):
@@ -74,8 +73,8 @@ class FriendView(Gtk.Box):
             self._activity_icon.props.file_name = name
             self._activity_icon.props.xo_color = self._buddy.props.color
             if not self._activity_icon.get_visible():
-                self.add(self._activity_icon)
-                self._activity_icon.show()
+                self.append(self._activity_icon)
+                self._activity_icon.set_visible(True)
         else:
             self._remove_activity_icon()
 

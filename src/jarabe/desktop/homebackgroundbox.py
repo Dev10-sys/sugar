@@ -21,6 +21,7 @@ from gi.repository import Gtk
 from gi.repository import Gdk
 from gi.repository import GdkPixbuf
 from gi.repository import Gio
+from gi.repository import Graphene
 
 BACKGROUND_DIR = 'org.sugarlabs.user.background'
 BACKGROUND_IMAGE_PATH_KEY = 'image-path'
@@ -58,27 +59,28 @@ class HomeBackgroundBox(Gtk.Box):
     def __init__(self):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
         self._background_pixbuf = None
+        self._background_texture = None
         self._update_background_image()
-        self.connect('draw', self.__draw_cb)
 
         self._settings = Gio.Settings.new(BACKGROUND_DIR)
         self._settings.connect('changed', self.__conf_changed_cb, None)
 
-    def __draw_cb(self, widget, context):
-        if self._background_pixbuf is None:
-            return
+    def do_snapshot(self, snapshot):
+        """GTK4: Replace 'draw' signal with do_snapshot override."""
+        if self._background_texture is not None:
+            width = self.get_width()
+            height = self.get_height()
+            alpha = get_background_alpha_level()
 
-        alloc = widget.get_allocation()
+            rect = Graphene.Rect()
+            rect.init(0, 0, width, height)
 
-        if self._background_pixbuf.get_width() != alloc.width or \
-                self._background_pixbuf.get_height() != alloc.height:
-            self._background_pixbuf = self._background_pixbuf.scale_simple(
-                alloc.width,
-                alloc.height,
-                GdkPixbuf.InterpType.TILES)
-        Gdk.cairo_set_source_pixbuf(context, self._background_pixbuf, 0, 0)
-        alpha = get_background_alpha_level()
-        context.paint_with_alpha(alpha)
+            snapshot.push_opacity(alpha)
+            snapshot.append_texture(self._background_texture, rect)
+            snapshot.pop()
+
+        # Let parent class snapshot children
+        Gtk.Box.do_snapshot(self, snapshot)
 
     def __conf_changed_cb(self, settings, key, data):
         self._update_background_image()
@@ -89,11 +91,15 @@ class HomeBackgroundBox(Gtk.Box):
 
         if background_image_path == '':
             self._background_pixbuf = None
+            self._background_texture = None
         elif os.path.exists(background_image_path):
             try:
                 self._background_pixbuf = GdkPixbuf.Pixbuf.new_from_file(
                     background_image_path)
+                self._background_texture = Gdk.Texture.new_for_pixbuf(
+                    self._background_pixbuf)
             except Exception as e:
                 logging.exception('Failed to update background image %s: %s' %
                                   (background_image_path, str(e)))
                 self._background_pixbuf = None
+                self._background_texture = None

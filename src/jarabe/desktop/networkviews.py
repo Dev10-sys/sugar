@@ -128,25 +128,31 @@ class WirelessNetworkView(EventPulsingIcon):
 
         self._connect_item = PaletteMenuItem(_('Connect'))
         icon = Icon(pixel_size=style.SMALL_ICON_SIZE, icon_name='dialog-ok')
-        self._connect_item.set_image(icon)
+        if hasattr(self._connect_item, 'set_image'):
+            self._connect_item.set_image(icon)
         self._connect_item.connect('activate', self.__connect_activate_cb)
-        self.menu_box.add(self._connect_item)
+        self.menu_box.append(self._connect_item)
+        self._connect_item.set_visible(True)
 
         self._disconnect_item = PaletteMenuItem(_('Disconnect'))
         icon = Icon(pixel_size=style.SMALL_ICON_SIZE, icon_name='media-eject')
-        self._disconnect_item.set_image(icon)
+        if hasattr(self._disconnect_item, 'set_image'):
+            self._disconnect_item.set_image(icon)
         self._disconnect_item.connect(
             'activate', self.__disconnect_activate_cb)
-        self.menu_box.add(self._disconnect_item)
+        self.menu_box.append(self._disconnect_item)
+        self._disconnect_item.set_visible(True)
 
         self._forget_item = PaletteMenuItem(_('Forget'))
         icon = Icon(pixel_size=style.SMALL_ICON_SIZE, icon_name='list-remove')
-        self._forget_item.set_image(icon)
+        if hasattr(self._forget_item, 'set_image'):
+            self._forget_item.set_image(icon)
         self._forget_item.connect('activate', self.__forget_activate_cb)
-        self.menu_box.add(self._forget_item)
+        self.menu_box.append(self._forget_item)
+        self._forget_item.set_visible(True)
 
         p.set_content(self.menu_box)
-        self.menu_box.show_all()
+        self.menu_box.set_visible(True)
 
         self.connect_to_palette_pop_events(p)
 
@@ -270,21 +276,21 @@ class WirelessNetworkView(EventPulsingIcon):
            state == network.NM_DEVICE_STATE_NEED_AUTH or \
            state == network.NM_DEVICE_STATE_IP_CONFIG:
             if self._disconnect_item:
-                self._disconnect_item.show()
-            self._connect_item.hide()
+                self._disconnect_item.set_visible(True)
+            self._connect_item.set_visible(False)
             self._palette.props.secondary_text = _('Connecting...')
             self.props.pulsing = True
         elif state == network.NM_DEVICE_STATE_ACTIVATED:
             network.set_connected()
             if self._disconnect_item:
-                self._disconnect_item.show()
-            self._connect_item.hide()
+                self._disconnect_item.set_visible(True)
+            self._connect_item.set_visible(False)
             self._palette.props.secondary_text = _('Connected')
             self.props.pulsing = False
         else:
             if self._disconnect_item:
-                self._disconnect_item.hide()
-            self._connect_item.show()
+                self._disconnect_item.set_visible(False)
+            self._connect_item.set_visible(True)
             self._palette.props.secondary_text = None
             self.props.pulsing = False
 
@@ -531,20 +537,23 @@ class SugarAdhocView(EventPulsingIcon):
 
         self._connect_item = PaletteMenuItem(_('Connect'))
         icon = Icon(pixel_size=style.SMALL_ICON_SIZE, icon_name='dialog-ok')
-        self._connect_item.set_image(icon)
+        if hasattr(self._connect_item, 'set_image'):
+            self._connect_item.set_image(icon)
         self._connect_item.connect('activate', self.__connect_activate_cb)
-        self.menu_box.add(self._connect_item)
+        self.menu_box.append(self._connect_item)
+        self._connect_item.set_visible(True)
 
         self._disconnect_item = PaletteMenuItem(_('Disconnect'))
         icon = Icon(pixel_size=style.SMALL_ICON_SIZE, icon_name='media-eject')
-        self._disconnect_item.set_image(icon)
+        if hasattr(self._disconnect_item, 'set_image'):
+            self._disconnect_item.set_image(icon)
         self._disconnect_item.connect(
             'activate', self.__disconnect_activate_cb)
-        self.menu_box.add(self._disconnect_item)
+        self.menu_box.append(self._disconnect_item)
+        self._disconnect_item.set_visible(False)
 
         palette_.set_content(self.menu_box)
-        self.menu_box.show_all()
-        self._disconnect_item.hide()
+        self.menu_box.set_visible(True)
 
         self.connect_to_palette_pop_events(palette_)
 
@@ -575,20 +584,20 @@ class SugarAdhocView(EventPulsingIcon):
         if (state >= network.NM_DEVICE_STATE_PREPARE) and \
            (state <= network.NM_DEVICE_STATE_IP_CONFIG):
             if self._disconnect_item:
-                self._disconnect_item.show()
-            self._connect_item.hide()
+                self._disconnect_item.set_visible(True)
+            self._connect_item.set_visible(False)
             self._palette.props.secondary_text = _('Connecting...')
             self.props.pulsing = True
         elif state == network.NM_DEVICE_STATE_ACTIVATED:
             if self._disconnect_item:
-                self._disconnect_item.show()
-            self._connect_item.hide()
+                self._disconnect_item.set_visible(True)
+            self._connect_item.set_visible(False)
             self._palette.props.secondary_text = _('Connected')
             self.props.pulsing = False
         else:
             if self._disconnect_item:
-                self._disconnect_item.hide()
-            self._connect_item.show()
+                self._disconnect_item.set_visible(False)
+            self._connect_item.set_visible(True)
             self._palette.props.secondary_text = None
             self.props.pulsing = False
         self._update_color()
@@ -675,12 +684,14 @@ class OlpcMeshView(EventPulsingIcon):
 
         self._connect_item = PaletteMenuItem(_('Connect'))
         icon = Icon(pixel_size=style.SMALL_ICON_SIZE, icon_name='dialog-ok')
-        self._connect_item.set_image(icon)
+        if hasattr(self._connect_item, 'set_image'):
+            self._connect_item.set_image(icon)
         self._connect_item.connect('activate', self.__connect_activate_cb)
-        self.menu_box.add(self._connect_item)
+        self.menu_box.append(self._connect_item)
+        self._connect_item.set_visible(True)
 
         _palette.set_content(self.menu_box)
-        self.menu_box.show_all()
+        self.menu_box.set_visible(True)
 
         return _palette
 
@@ -720,20 +731,20 @@ class OlpcMeshView(EventPulsingIcon):
                      network.NM_DEVICE_STATE_NEED_AUTH,
                      network.NM_DEVICE_STATE_IP_CONFIG]:
             if self._disconnect_item:
-                self._disconnect_item.show()
-            self._connect_item.hide()
+                self._disconnect_item.set_visible(True)
+            self._connect_item.set_visible(False)
             self._palette.props.secondary_text = _('Connecting...')
             self.props.pulsing = True
         elif state == network.NM_DEVICE_STATE_ACTIVATED:
             if self._disconnect_item:
-                self._disconnect_item.show()
-            self._connect_item.hide()
+                self._disconnect_item.set_visible(True)
+            self._connect_item.set_visible(False)
             self._palette.props.secondary_text = _('Connected')
             self.props.pulsing = False
         else:
             if self._disconnect_item:
-                self._disconnect_item.hide()
-            self._connect_item.show()
+                self._disconnect_item.set_visible(False)
+            self._connect_item.set_visible(True)
             self._palette.props.secondary_text = None
             self.props.pulsing = False
 

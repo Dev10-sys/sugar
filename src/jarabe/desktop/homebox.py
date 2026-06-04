@@ -25,6 +25,16 @@ from jarabe.util.normalize import normalize_string
 from jarabe.model import desktop
 
 
+def _get_children(box):
+    """Helper to iterate children of a Gtk.Box in GTK4."""
+    children = []
+    child = box.get_first_child()
+    while child:
+        children.append(child)
+        child = child.get_next_sibling()
+    return children
+
+
 class HomeBox(Gtk.Box):
     __gtype_name__ = 'SugarHomeBox'
 
@@ -50,8 +60,12 @@ class HomeBox(Gtk.Box):
         toolbar.search_entry._icon_selected = []
         toolbar.connect('query-changed', self.__toolbar_query_changed_cb)
         toolbar.connect('view-changed', self.__toolbar_view_changed_cb)
-        toolbar.search_entry.connect('key-press-event',
-                                     self.__search_entry_key_press_event_cb)
+
+        key_controller = Gtk.EventControllerKey.new()
+        key_controller.connect('key-pressed',
+                               self.__search_entry_key_pressed_cb)
+        toolbar.search_entry.add_controller(key_controller)
+
         toolbar.search_entry.connect('icon-press',
                                      self.__clear_icon_pressed_cb)
         self._list_view.connect('clear-clicked',
@@ -110,10 +124,10 @@ class HomeBox(Gtk.Box):
     def __toolbar_view_changed_cb(self, toolbar, view):
         self._set_view(view)
 
-    def __search_entry_key_press_event_cb(self, entry, event):
-        # wherever a single item is selected in a desktop view,
-        # launch the activity on pressing return
-        if event.keyval == Gdk.KEY_Return and len(entry._icon_selected) == 1:
+    def __search_entry_key_pressed_cb(self, controller, keyval, keycode, state):
+        """GTK4 EventControllerKey callback for search entry."""
+        entry = controller.get_widget()
+        if keyval == Gdk.KEY_Return and len(entry._icon_selected) == 1:
             self._list_view.run_activity(entry._icon_selected[0]['bundle_id'],
                                          self._resume_mode)
             entry._icon_selected = []
@@ -122,13 +136,14 @@ class HomeBox(Gtk.Box):
     def __activitylist_clear_clicked_cb(self, widget, toolbar):
         toolbar.clear_query()
 
-    def __clear_icon_pressed_cb(self, entry, icon_pos, event):
+    def __clear_icon_pressed_cb(self, entry, icon_pos):
+        """GTK4: icon-press signal no longer passes event parameter."""
         self.grab_focus()
 
     def grab_focus(self):
         # overwrite grab focus to be able to grab focus on the
         # views which are packed inside a box
-        children = self.get_children()
+        children = _get_children(self)
         if self._list_view in children:
             self._list_view.grab_focus()
         else:
@@ -140,7 +155,7 @@ class HomeBox(Gtk.Box):
         if view in self._favorites_views_indicies:
             favorite = self._favorites_views_indicies.index(view)
 
-            children = self.get_children()
+            children = _get_children(self)
             if self._list_view in children:
                 self.remove(self._list_view)
             else:
@@ -149,18 +164,18 @@ class HomeBox(Gtk.Box):
                         self.remove(self._favorites_boxes[i])
 
             if self._favorites_boxes[favorite] not in children:
-                self.add(self._favorites_boxes[favorite])
-                self._favorites_boxes[favorite].show()
+                self._favorites_boxes[favorite].set_vexpand(True)
+                self.append(self._favorites_boxes[favorite])
                 self._favorites_boxes[favorite].grab_focus()
         elif view == self._list_view_index:
-            children = self.get_children()
+            children = _get_children(self)
             for i in range(desktop.get_number_of_views()):
                 if self._favorites_boxes[i] in children:
                     self.remove(self._favorites_boxes[i])
 
             if self._list_view not in children:
-                self.add(self._list_view)
-                self._list_view.show()
+                self._list_view.set_vexpand(True)
+                self.append(self._list_view)
                 self._list_view.grab_focus()
         else:
             raise ValueError('Invalid view: %r' % view)
